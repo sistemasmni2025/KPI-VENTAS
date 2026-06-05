@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sky-bg: #E0F2FE;
+  --color-sky-surface: #FFFFFF;
+  --color-sky-text: #0F172A; /* slate-900 for dark text */
+  --color-sky-muted: #64748B; /* slate-500 for muted text */
+  --color-sky-accent: #0EA5E9;
+  --color-sky-border: #BAE6FD;
+
+  --font-sans: "Inter", "Roboto", "Segoe UI", sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text-main);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
