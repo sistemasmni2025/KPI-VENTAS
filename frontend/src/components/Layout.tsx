@@ -7,6 +7,7 @@ export function Layout() {
   const [sucursales, setSucursales] = useState<{id: number, nombre: string, empresa_id?: number}[]>([]);
   const [ventasOpen, setVentasOpen] = useState(false);
   const [orbisOpen, setOrbisOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { selectedEmpresa, setSelectedEmpresa } = useEmpresa();
@@ -42,24 +43,43 @@ export function Layout() {
   // Filtrar sucursales por la empresa seleccionada
   const sucursalesEmpresa = sucursales.filter(s => s.empresa_id === selectedEmpresa.id || s.empresa_id === undefined);
 
+  // Determinar logo según la empresa
+  const getCompanyLogo = (nombre: string) => {
+    const nom = nombre.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (nom.includes('multi')) return '/Multi.jpg';
+    if (nom.includes('slr')) return '/slr.jpeg';
+    if (nom.includes('rodamiento')) return '/rodamientos.png';
+    return '/icon.png';
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-[var(--color-sky-bg)] font-sans text-[var(--color-sky-text)] selection:bg-[var(--color-sky-accent)] selection:text-white overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#F8FAFC] font-sans text-slate-900 selection:bg-indigo-500 selection:text-white overflow-hidden relative">
       
+      {/* Elementos decorativos de fondo tipo "Aurora/Mesh Gradient" compartidos con el SelectEmpresa */}
+      {/* Orbe rojo/coral suave arriba a la derecha */}
+      <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-rose-400/30 rounded-full blur-[120px] pointer-events-none mix-blend-multiply"></div>
+      
+      {/* Orbe azul cielo suave abajo a la izquierda */}
+      <div className="absolute bottom-[-10%] left-[-10%] w-[700px] h-[700px] bg-blue-400/30 rounded-full blur-[120px] pointer-events-none mix-blend-multiply"></div>
+      
+      {/* Orbe blanco central sutil para suavizar las transiciones */}
+      <div className="absolute top-[30%] left-[30%] w-[800px] h-[800px] bg-white/60 rounded-full blur-[120px] pointer-events-none"></div>
+
       {/* Top Header Navigation */}
-      <header className="h-16 bg-[var(--color-sky-surface)] border-b border-[var(--color-sky-border)] flex items-center justify-between px-4 md:px-8 shrink-0 z-50 shadow-sm relative">
+      <header className="h-16 bg-white/60 backdrop-blur-md border-b border-white/50 flex items-center justify-between px-4 md:px-8 shrink-0 z-50 shadow-sm relative">
         
         {/* Left Section: Logo & Nav */}
         <div className="flex items-center space-x-8 h-full">
           {/* Logo */}
           <div className="flex items-center">
-            <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm">
-              <img src="/icon.png" alt="Logo Nieto" className="w-full h-full object-cover" />
+            <div className="w-10 h-10 rounded-xl bg-white/80 border border-white flex items-center justify-center overflow-hidden shadow-sm p-1">
+              <img src={getCompanyLogo(selectedEmpresa.nombre)} alt={`Logo ${selectedEmpresa.nombre}`} className="w-full h-full object-contain mix-blend-multiply" />
             </div>
             <div className="ml-3 hidden sm:flex flex-col justify-center">
-              <span className="font-extrabold text-lg tracking-tight text-[var(--color-sky-text)] leading-tight">
-                Reportes <span className="text-[#c1121f]">Nieto</span>
+              <span className="font-extrabold text-lg tracking-tight text-slate-900 leading-tight">
+                KPI´S <span className="text-[#c1121f]">VENTAS</span>
               </span>
-              <span className="text-xs font-semibold text-sky-600 truncate max-w-[150px]">
+              <span className="text-xs font-semibold text-indigo-600 truncate max-w-[150px]">
                 {selectedEmpresa.nombre}
               </span>
             </div>
@@ -69,11 +89,22 @@ export function Layout() {
           <nav className="flex items-center h-full space-x-1">
             <NavLink 
               to="/dashboard" 
-              className={({ isActive }) => `flex items-center space-x-2 px-4 h-full border-b-2 transition-colors ${isActive ? 'border-[var(--color-sky-accent)] text-[var(--color-sky-accent)] font-bold bg-sky-50/50' : 'border-transparent text-slate-500 hover:text-[var(--color-sky-text)] hover:bg-sky-50/50'}`}
+              className={({ isActive }) => `flex items-center space-x-2 px-4 h-full border-b-2 transition-colors ${isActive ? 'border-indigo-600 text-indigo-600 font-bold bg-indigo-50/50' : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
             >
               <LayoutDashboard size={18} />
               <span className="hidden sm:inline">Dashboard</span>
             </NavLink>
+
+            {/* Filtros Toggle Button */}
+            <button 
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className={`flex items-center space-x-2 px-4 h-full border-b-2 transition-colors cursor-pointer ${
+                isFilterOpen ? 'border-indigo-600 text-indigo-600 font-bold bg-indigo-50/50' : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+              <span className="hidden sm:inline">Filtros</span>
+            </button>
 
             {/* Ventas Dropdown */}
             <div className="relative h-full flex items-center" ref={dropdownRef}>
@@ -81,8 +112,8 @@ export function Layout() {
                 onClick={() => setVentasOpen(!ventasOpen)}
                 className={`flex items-center space-x-2 px-4 h-full border-b-2 transition-colors cursor-pointer ${
                   location.pathname.startsWith('/ventas/sucursal/') || ventasOpen
-                    ? 'border-[var(--color-sky-accent)] text-[var(--color-sky-accent)] font-bold bg-sky-50/50' 
-                    : 'border-transparent text-slate-500 hover:text-[var(--color-sky-text)] hover:bg-sky-50/50'
+                    ? 'border-indigo-600 text-indigo-600 font-bold bg-indigo-50/50' 
+                    : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
                 <ShoppingCart size={18} />
@@ -91,35 +122,33 @@ export function Layout() {
               </button>
 
               {/* Dropdown Panel */}
-              <div 
-                className={`absolute top-full left-0 mt-1 w-64 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden transition-all duration-200 origin-top-left ${
-                  ventasOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'
-                }`}
-              >
-                <div className="max-h-[70vh] overflow-y-auto p-2 space-y-1">
-                  {sucursalesEmpresa.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-slate-500">
-                      No hay sucursales disponibles.
-                    </div>
-                  ) : (
-                    sucursalesEmpresa.map(suc => (
+              {/* Dropdown Menu */}
+              {ventasOpen && (
+                <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 backdrop-blur-2xl border border-slate-100 rounded-3xl shadow-[0_20px_40px_rgb(0,0,0,0.08)] p-3 z-[60] origin-top-left animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1 space-y-1">
+                    {sucursalesEmpresa.map((sucursal) => (
                       <NavLink
-                        key={suc.id}
-                        to={`/ventas/sucursal/${suc.id}`}
+                        key={sucursal.id}
+                        to={`/ventas/sucursal/${sucursal.id}`}
                         onClick={() => setVentasOpen(false)}
-                        className={({ isActive }) => `w-full flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 ${
+                        className={({ isActive }) => `flex items-center px-4 py-3 text-sm rounded-xl transition-colors cursor-pointer ${
                           isActive 
-                            ? 'bg-sky-100 text-[var(--color-sky-accent)] font-bold' 
-                            : 'text-slate-600 hover:bg-sky-50 hover:text-[var(--color-sky-text)]'
+                            ? 'bg-indigo-50 text-indigo-800 font-bold' 
+                            : 'text-slate-800 font-semibold hover:bg-rose-50 hover:text-rose-700'
                         }`}
                       >
-                        <Building2 size={16} className={location.pathname === `/ventas/sucursal/${suc.id}` ? 'text-[var(--color-sky-accent)]' : 'text-slate-400'} />
-                        <span>{suc.nombre}</span>
+                        <Building2 size={16} className="mr-3 opacity-70" />
+                        {sucursal.nombre}
                       </NavLink>
-                    ))
-                  )}
+                    ))}
+                    {sucursalesEmpresa.length === 0 && (
+                      <div className="px-4 py-3 text-sm text-slate-500 italic text-center">
+                        No hay sucursales disponibles
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </nav>
         </div>
@@ -144,12 +173,12 @@ export function Layout() {
             <span className="font-bold text-sm tracking-wide">Orbis AI</span>
           </button>
 
-          <button className="relative p-2 text-slate-500 hover:text-[var(--color-sky-accent)] transition-colors cursor-pointer hidden sm:block">
+          <button className="relative p-2 text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer hidden sm:block">
             <Bell size={20} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
           </button>
           
-          <div className="w-9 h-9 rounded-full bg-amber-400 border-2 border-white shadow-sm flex items-center justify-center text-white font-bold cursor-pointer">
+          <div className="w-9 h-9 rounded-full bg-amber-400 border-2 border-white shadow-sm flex items-center justify-center text-white font-bold cursor-pointer hover:scale-105 transition-transform">
             JR
           </div>
         </div>
@@ -157,7 +186,7 @@ export function Layout() {
 
       {/* Orbis Offcanvas Panel */}
       <div className={`fixed inset-0 z-[100] transition-opacity duration-300 ${orbisOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm" onClick={() => setOrbisOpen(false)}></div>
+        <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={() => setOrbisOpen(false)}></div>
         <div className={`absolute top-0 right-0 h-full w-full sm:w-[400px] bg-white shadow-2xl transition-transform duration-300 transform ${orbisOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col border-l border-slate-200`}>
           <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-violet-600 to-indigo-600 text-white">
             <div className="flex items-center space-x-2">
@@ -179,11 +208,12 @@ export function Layout() {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-auto bg-[var(--color-sky-bg)] relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
-        <Outlet />
+      <main className="flex-1 overflow-auto bg-transparent relative z-10">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/20 via-transparent to-transparent pointer-events-none" />
+        <div className="relative z-10 animate-fade-in">
+          <Outlet context={{ isFilterOpen, setIsFilterOpen }} />
+        </div>
       </main>
-
     </div>
   );
 }

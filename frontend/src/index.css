@@ -1,21 +1,57 @@
 @import "tailwindcss";
 
-@theme {
-  --color-sky-bg: #E0F2FE;
-  --color-sky-surface: #FFFFFF;
-  --color-sky-text: #0F172A; /* slate-900 for dark text */
-  --color-sky-muted: #64748B; /* slate-500 for muted text */
-  --color-sky-accent: #0EA5E9;
-  --color-sky-border: #BAE6FD;
+/* Import Premium Font */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-  --font-sans: "Inter", "Roboto", "Segoe UI", sans-serif;
+@theme {
+  --color-brand-50: #EEF2FF;
+  --color-brand-100: #E0E7FF;
+  --color-brand-500: #6366F1;
+  --color-brand-600: #4F46E5;
+  --color-brand-900: #312E81;
+  
+  --color-surface-bg: #F8FAFC; /* Slate 50 for premium background */
+  --color-surface-card: #FFFFFF;
+  
+  --color-text-main: #0F172A; /* Slate 900 */
+  --color-text-muted: #64748B; /* Slate 500 */
+  
+  --color-border-light: #E2E8F0; /* Slate 200 */
+
+  --font-sans: "Plus Jakarta Sans", "Inter", sans-serif;
 }
 
 @layer base {
   body {
-    background-color: var(--color-background);
+    background-color: var(--color-surface-bg);
     color: var(--color-text-main);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+}
+
+/* Scrollbar personalizado para un toque premium */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Animaciones personalizadas */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
 }
