@@ -88,15 +88,15 @@ export function Dashboard() {
       <div className={`p-4 md:px-8 space-y-8 max-w-[1400px] mx-auto w-full animate-fade-in transition-all duration-500 ${!isFilterOpen ? 'mt-4' : ''}`}>
         {/* Pestañas (Tabs) de Navegación */}
         <div className="flex border-b border-slate-200/60 pb-4">
-          <div className="flex bg-white shadow-sm border border-slate-100 p-1.5 rounded-2xl">
+          <div className="flex bg-[var(--color-surface-card)] shadow-sm border border-[var(--color-border-light)] p-1.5 rounded-2xl">
             {TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
                   activeTab === tab.id 
-                    ? 'bg-indigo-50 text-indigo-700 shadow-sm' 
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                    ? 'bg-[var(--color-brand-50)] text-[var(--color-brand-600)] shadow-sm' 
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface-bg)]'
                 }`}
               >
                 {tab.label}
@@ -180,12 +180,12 @@ export function Dashboard() {
 
 function StatCard({ title, value, trend, negative = false }: { title: string, value: string, trend: string, negative?: boolean }) {
   return (
-    <div className="bg-white p-7 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 flex flex-col relative overflow-hidden group hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1.5 transition-all duration-500">
+    <div className="bg-[var(--color-surface-card)] p-7 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[var(--color-border-light)] flex flex-col relative overflow-hidden group hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1.5 transition-all duration-500">
       <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-500 transform group-hover:scale-110">
-        <TrendingUp size={100} className="text-indigo-600" />
+        <TrendingUp size={100} className="text-[var(--color-brand-500)]" />
       </div>
-      <span className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">{title}</span>
-      <span className="text-4xl font-black text-slate-900 tracking-tight leading-none my-1">{value}</span>
+      <span className="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-2">{title}</span>
+      <span className="text-4xl font-black text-[var(--color-text-main)] tracking-tight leading-none my-1">{value}</span>
       <div className="mt-5 flex items-center">
         <span className={`text-xs font-extrabold px-3 py-1 rounded-full ${
           negative 
@@ -202,10 +202,10 @@ function StatCard({ title, value, trend, negative = false }: { title: string, va
 
 function ChartCard({ title, children, type, className = '' }: { title: string, children: React.ReactNode, type: 'bar' | 'pie', className?: string }) {
   return (
-    <div className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 flex flex-col overflow-hidden relative min-h-[380px] hover:shadow-[0_20px_40px_rgb(0,0,0,0.06)] transition-shadow duration-500 ${className}`}>
-      <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-        <h3 className="font-bold text-slate-800 text-base tracking-wide">{title}</h3>
-        <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600 shadow-sm">
+    <div className={`bg-[var(--color-surface-card)] rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[var(--color-border-light)] flex flex-col overflow-hidden relative min-h-[380px] hover:shadow-[0_20px_40px_rgb(0,0,0,0.06)] transition-shadow duration-500 ${className}`}>
+      <div className="px-6 py-5 border-b border-[var(--color-border-light)]/50 flex items-center justify-between bg-[var(--color-surface-bg)]/50">
+        <h3 className="font-bold text-[var(--color-text-main)] text-base tracking-wide">{title}</h3>
+        <div className="p-2 bg-[var(--color-brand-50)] rounded-xl text-[var(--color-brand-600)] shadow-sm">
           {type === 'pie' ? <PieChartIcon size={18} /> : <BarChart2 size={18} />}
         </div>
       </div>

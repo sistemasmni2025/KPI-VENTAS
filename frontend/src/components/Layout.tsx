@@ -53,7 +53,7 @@ export function Layout() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8FAFC] font-sans text-slate-900 selection:bg-indigo-500 selection:text-white overflow-hidden relative">
+    <div className="flex flex-col h-screen bg-[var(--color-surface-bg)] font-sans text-[var(--color-text-main)] selection:bg-[var(--color-brand-500)] selection:text-white overflow-hidden relative">
       
       {/* Elementos decorativos de fondo tipo "Aurora/Mesh Gradient" compartidos con el SelectEmpresa */}
       {/* Orbe rojo/coral suave arriba a la derecha */}
@@ -66,13 +66,13 @@ export function Layout() {
       <div className="absolute top-[30%] left-[30%] w-[800px] h-[800px] bg-white/60 rounded-full blur-[120px] pointer-events-none"></div>
 
       {/* Top Header Navigation */}
-      <header className="h-16 bg-white/60 backdrop-blur-md border-b border-white/50 flex items-center justify-between px-4 md:px-8 shrink-0 z-50 shadow-sm relative">
+      <header className="h-16 bg-[var(--color-surface-card)]/60 backdrop-blur-md border-b border-[var(--color-border-light)]/50 flex items-center justify-between px-4 md:px-8 shrink-0 z-50 shadow-sm relative">
         
         {/* Left Section: Logo & Nav */}
         <div className="flex items-center space-x-8 h-full">
           {/* Logo */}
           <div className="flex items-center">
-            <div className="w-10 h-10 rounded-xl bg-white/80 border border-white flex items-center justify-center overflow-hidden shadow-sm p-1">
+            <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-card)]/80 border border-[var(--color-border-light)] flex items-center justify-center overflow-hidden shadow-sm p-1">
               <img src={getCompanyLogo(selectedEmpresa.nombre)} alt={`Logo ${selectedEmpresa.nombre}`} className="w-full h-full object-contain mix-blend-multiply" />
             </div>
             <div className="ml-3 hidden sm:flex flex-col justify-center">
@@ -124,7 +124,7 @@ export function Layout() {
               {/* Dropdown Panel */}
               {/* Dropdown Menu */}
               {ventasOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 backdrop-blur-2xl border border-slate-100 rounded-3xl shadow-[0_20px_40px_rgb(0,0,0,0.08)] p-3 z-[60] origin-top-left animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="absolute top-full left-0 mt-2 w-64 bg-[var(--color-surface-card)]/95 backdrop-blur-2xl border border-[var(--color-border-light)] rounded-3xl shadow-[0_20px_40px_rgb(0,0,0,0.08)] p-3 z-[60] origin-top-left animate-in fade-in slide-in-from-top-2 duration-300">
                   <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1 space-y-1">
                     {sucursalesEmpresa.map((sucursal) => (
                       <NavLink
@@ -187,7 +187,7 @@ export function Layout() {
       {/* Orbis Offcanvas Panel */}
       <div className={`fixed inset-0 z-[100] transition-opacity duration-300 ${orbisOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={() => setOrbisOpen(false)}></div>
-        <div className={`absolute top-0 right-0 h-full w-full sm:w-[400px] bg-white shadow-2xl transition-transform duration-300 transform ${orbisOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col border-l border-slate-200`}>
+        <div className={`absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[var(--color-surface-card)] shadow-2xl transition-transform duration-300 transform ${orbisOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col border-l border-[var(--color-border-light)]`}>
           <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-violet-600 to-indigo-600 text-white">
             <div className="flex items-center space-x-2">
               <Sparkles size={20} />
@@ -210,9 +210,7 @@ export function Layout() {
       {/* Main Content Area */}
       <main className="flex-1 overflow-auto bg-transparent relative z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/20 via-transparent to-transparent pointer-events-none" />
-        <div className="relative z-10 animate-fade-in">
-          <Outlet context={{ isFilterOpen, setIsFilterOpen }} />
-        </div>
+          <Outlet context={{ isFilterOpen, setIsFilterOpen, sucursales }} />
       </main>
     </div>
   );
