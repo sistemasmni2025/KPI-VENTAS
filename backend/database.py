@@ -3,19 +3,25 @@ from sqlalchemy.orm import sessionmaker
 
 # Configuración de URLs de conexión (intentaremos en orden de prioridad)
 CONNECTION_URLS = [
-    # 1. Base de datos QA / Ventas20 (nuevas credenciales)
+    # 0. Producción (Servidor Multillantas Nieto)
+    "mysql+pymysql://root:MyALinMnI92SQL@multillantasnieto.net:3306/multiventas",
+    # 1. Base de datos QA / Ventas20 en puerto 3606 (preferente)
+    "mysql+pymysql://usrmulti:mni921016@172.16.71.199:3606/multiventas",
+    "mysql+pymysql://root:root@172.16.71.199:3606/multiventas",
+    "mysql+pymysql://usrmulti:mni921016@172.16.71.199:3606/Ventas20",
+    # 2. Base de datos QA / Ventas20 en puerto 3306
     "mysql+pymysql://usrmulti:mni921016@172.16.71.199:3306/multiventas",
     "mysql+pymysql://usrmulti:mni921016@172.16.71.199:3306/Ventas20",
     "mysql+pymysql://root:root@172.16.71.199:3306/multiventas",
-    # 2. Localhost con root/root en puerto 3306 (con hostname localhost y con IP 127.0.0.1)
+    # 3. Localhost con root/root en puerto 3306 (con hostname localhost y con IP 127.0.0.1)
     "mysql+pymysql://root:root@localhost:3306/multiventas",
     "mysql+pymysql://root:root@127.0.0.1:3306/multiventas",
-    # 3. Localhost con root/root en otros puertos comunes
+    # 4. Localhost con root/root en otros puertos comunes
     "mysql+pymysql://root:root@localhost:3307/multiventas",
     "mysql+pymysql://root:root@127.0.0.1:3307/multiventas",
     "mysql+pymysql://root:root@localhost:3308/multiventas",
     "mysql+pymysql://root:root@127.0.0.1:3308/multiventas",
-    # 4. Localhost sin contraseña
+    # 5. Localhost sin contraseña
     "mysql+pymysql://root:@localhost:3306/multiventas",
     "mysql+pymysql://root:@127.0.0.1:3306/multiventas",
 ]

@@ -16,12 +16,17 @@ const data = [
   { name: 'Dic', Ventas: 9500, Meta: 6500 },
 ];
 
-export function SalesChart() {
+interface SalesChartProps {
+  data?: { name: string; Ventas: number; Meta: number }[];
+}
+
+export function SalesChart({ data: propData }: SalesChartProps) {
+  const chartData = propData && propData.length > 0 ? propData : data;
   return (
     <div className="w-full h-full p-4 min-h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
-          data={data}
+          data={chartData}
           margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
         >
           <defs>

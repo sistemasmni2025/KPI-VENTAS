@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Building2, Calendar, TrendingUp, AlertCircle, RefreshCw, Layers, Car, Truck } from 'lucide-react';
+import { useParams, useOutletContext } from 'react-router-dom';
+import { Building2, TrendingUp, AlertCircle, RefreshCw, Car, Truck } from 'lucide-react';
+import { useEmpresa } from '../context/EmpresaContext';
+import { SmartFilterBar } from '../components/SmartFilterBar';
+import type { FilterState } from '../components/SmartFilterBar';
 
 interface MonthlyBreakdown {
   mes: number;
@@ -49,28 +52,96 @@ const BRANCH_NAMES: { [key: number]: string } = {
 
 export function VentasSucursal() {
   const { id } = useParams<{ id: string }>();
+  const { selectedEmpresa } = useEmpresa();
+  const { isFilterOpen, setIsFilterOpen } = useOutletContext<{isFilterOpen: boolean, setIsFilterOpen: (val: boolean) => void}>() || { isFilterOpen: true, setIsFilterOpen: () => {} };
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [anioFilter, setAnioFilter] = useState(new Date().getFullYear());
-  const [fechaFin, setFechaFin] = useState("2026-06-03");
   const [data, setData] = useState<SucursalSalesData | null>(null);
-
-  // Tab activa: por defecto la primera categoría disponible
   const [activeTab, setActiveTab] = useState("AUTO-CAMIONETA");
+
+  const [filters, setFilters] = useState<FilterState | null>(null);
+  const [sucursales, setSucursales] = useState<{id: string, nombre: string}[]>([]);
+  const [asesores, setAsesores] = useState<{id: string, nombre: string}[]>([]);
+
+  // Cargar sucursales y asesores
+  useEffect(() => {
+    fetch('http://127.0.0.1:8001/api/sucursales')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const filtered = selectedEmpresa ? data.filter(d => d.empresa_id === selectedEmpresa.id || d.empresa_id == null) : data;
+          setSucursales(filtered.map(s => ({ id: String(s.id), nombre: s.nombre })));
+        }
+      })
+      .catch(err => console.error("Error cargando sucursales:", err));
+      
+    let asesoresUrl = 'http://127.0.0.1:8001/api/asesores';
+    if (selectedEmpresa) {
+      asesoresUrl += `?empresa_id=${selectedEmpresa.id}`;
+    }
+    fetch(asesoresUrl)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAsesores(data.map(a => ({ id: String(a.id), nombre: a.nombre })));
+        }
+      })
+      .catch(err => console.error("Error cargando asesores:", err));
+  }, [selectedEmpresa]);
 
   const fetchSalesData = () => {
     if (!id) return;
     setLoading(true);
     setError(null);
 
-    fetch(`http://127.0.0.1:8001/api/ventas/sucursal/${id}?anio=${anioFilter}`)
+    let url = `http://127.0.0.1:8001/api/ventas/sucursal/${id}`;
+    const params = new URLSearchParams();
+    
+    if (selectedEmpresa) {
+      params.append('empresa_id', String(selectedEmpresa.id));
+    }
+    
+    if (filters) {
+      if (filters.fechaInicio) params.append('fecha_inicio', filters.fechaInicio);
+      if (filters.fechaFin) params.append('fecha_fin', filters.fechaFin);
+      if (filters.asesores && filters.asesores.length > 0) {
+        params.append('asesores', filters.asesores.join(','));
+      }
+      if (filters.categoriasCliente && filters.categoriasCliente.length > 0) {
+        params.append('categorias_cliente', filters.categoriasCliente.join(','));
+      }
+      if (filters.manoDeObra && filters.manoDeObra.length > 0) {
+        params.append('mano_de_obra', filters.manoDeObra.join(','));
+      }
+      if (filters.talleresExternos && filters.talleresExternos.length > 0) {
+        params.append('talleres_externos', filters.talleresExternos.join(','));
+      }
+      if (filters.gruposProducto && filters.gruposProducto.length > 0) {
+        params.append('grupos_producto', filters.gruposProducto.join(','));
+      }
+      
+      // Si hay una fecha fin, extraemos el año para los objetivos
+      if (filters.fechaFin) {
+        const year = new Date(filters.fechaFin).getFullYear();
+        if (!isNaN(year)) {
+          params.append('anio', String(year));
+        }
+      }
+    }
+
+    const queryString = params.toString();
+    if (queryString) {
+      url += `?${queryString}`;
+    }
+
+    fetch(url)
       .then(res => res.json())
       .then(resData => {
         if (resData.error) {
           setError(resData.error);
         } else {
           setData(resData);
-          // Si el backend regresa categorías, asegurarnos de inicializar con una válida
           const cats = Object.keys(resData.categorias || {});
           if (cats.length > 0 && !cats.includes(activeTab)) {
             setActiveTab(cats[0]);
@@ -87,19 +158,7 @@ export function VentasSucursal() {
 
   useEffect(() => {
     fetchSalesData();
-  }, [id, anioFilter]);
-
-  const handleGenerate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (fechaFin) {
-      const year = new Date(fechaFin).getFullYear();
-      if (!isNaN(year) && year !== anioFilter) {
-        setAnioFilter(year);
-        return;
-      }
-    }
-    fetchSalesData();
-  };
+  }, [id, selectedEmpresa, filters]);
 
   const getAlcanceColor = (alcance: number) => {
     if (alcance >= 100) return { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-100", fill: "text-emerald-500" };
@@ -122,61 +181,34 @@ export function VentasSucursal() {
   const activeBrands = data?.categorias?.[activeTab] || [];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 bg-[#F8FAFC] text-slate-800 min-h-screen">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-6">
-        <div className="flex items-center space-x-4">
-          <div className="p-3 bg-gradient-to-tr from-indigo-500 to-purple-600 text-white rounded-2xl shadow-lg shadow-indigo-500/20">
-            <Building2 size={26} />
-          </div>
-          <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {sucursalNombre}
-            </h1>
-            <p className="text-slate-500 text-sm mt-1">
-              Cumplimiento de objetivos anuales por marca y categoría
-            </p>
-          </div>
-        </div>
+    <div className="flex flex-col min-h-screen relative z-10 bg-transparent text-slate-800">
+      {/* 1. Smart Filter Bar Flotante (Colapsable) */}
+      <div className={`transition-all duration-500 origin-top relative z-50 ${isFilterOpen ? 'max-h-[800px] opacity-100 scale-y-100 mb-4 overflow-visible' : 'max-h-0 opacity-0 scale-y-95 mb-0 overflow-hidden pointer-events-none'}`}>
+        <SmartFilterBar 
+          onFilterChange={setFilters} 
+          availableSucursales={sucursales} 
+          availableAsesores={asesores} 
+          onClose={() => setIsFilterOpen(false)}
+        />
       </div>
 
-      {/* Filtros */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_4px_25px_-5px_rgba(0,0,0,0.02)]">
-        <form onSubmit={handleGenerate} className="flex flex-wrap items-end gap-6">
-          <div className="flex-1 min-w-[200px] space-y-2">
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Fecha Final</label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                type="date"
-                value={fechaFin}
-                onChange={e => setFechaFin(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all"
-              />
+      <div className={`p-8 max-w-7xl mx-auto space-y-8 w-full animate-fade-in transition-all duration-500 bg-[#F8FAFC] min-h-screen ${!isFilterOpen ? 'mt-4' : ''}`}>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-6">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gradient-to-tr from-indigo-500 to-purple-600 text-white rounded-2xl shadow-lg shadow-indigo-500/20">
+              <Building2 size={26} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                {sucursalNombre}
+              </h1>
+              <p className="text-slate-500 text-sm mt-1">
+                Cumplimiento de objetivos anuales por marca y categoría
+              </p>
             </div>
           </div>
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Año de Reporte</label>
-            <select
-              value={anioFilter}
-              onChange={e => setAnioFilter(Number(e.target.value))}
-              className="bg-slate-50 border border-slate-100 text-slate-700 font-semibold rounded-xl px-4 py-2.5 text-sm outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all cursor-pointer"
-            >
-              <option value={2026}>2026</option>
-              <option value={2025}>2025</option>
-              <option value={2024}>2024</option>
-              <option value={2023}>2023</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/20 active:scale-95 transition-all flex items-center space-x-2 cursor-pointer"
-          >
-            {loading ? <RefreshCw className="animate-spin" size={16} /> : null}
-            <span>GENERAR REPORTES</span>
-          </button>
-        </form>
-      </div>
+        </div>
 
       {error ? (
         <div className="bg-rose-50 border border-rose-100 text-rose-800 p-4 rounded-xl flex items-start space-x-3">
@@ -309,6 +341,7 @@ export function VentasSucursal() {
           No hay datos de marcas disponibles para esta categoría.
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -19,10 +19,15 @@ interface SmartFilterBarProps {
   onClose?: () => void;
 }
 
+const getFirstDayOfMonth = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+};
+
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 
 const defaultFilters: FilterState = {
-  fechaInicio: getTodayDate(),
+  fechaInicio: getFirstDayOfMonth(),
   fechaFin: getTodayDate(),
   sucursales: [],
   asesores: [],
@@ -82,7 +87,7 @@ export function SmartFilterBar({ onFilterChange, availableSucursales, availableA
   const clearFilter = (category: FilterCategory, e: React.MouseEvent) => {
     e.stopPropagation();
     if (category === 'fechas') {
-      setFilters(prev => ({ ...prev, fechaInicio: getTodayDate(), fechaFin: getTodayDate() }));
+      setFilters(prev => ({ ...prev, fechaInicio: getFirstDayOfMonth(), fechaFin: getTodayDate() }));
     } else {
       setFilters(prev => ({ ...prev, [category]: [] }));
     }

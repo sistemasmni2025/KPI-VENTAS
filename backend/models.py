@@ -5,7 +5,7 @@ Base = declarative_base()
 
 class Asesor(Base):
     __tablename__ = 'asesor'
-    AsesorClave = Column(String(10), primary_key=True)
+    AsesorClave = Column(SmallInteger, primary_key=True)
     EmpresaID = Column(SmallInteger, primary_key=True)
     SucursalID = Column(Integer, primary_key=True)
     AsesorNombre = Column(String(80))
@@ -14,7 +14,7 @@ class Asesor(Base):
 
 class AsesorObjetivo(Base):
     __tablename__ = 'asesorobjetivo'
-    AsesorClave = Column(String(10), primary_key=True)
+    AsesorClave = Column(SmallInteger, primary_key=True)
     EmpresaID = Column(SmallInteger, primary_key=True)
     SucursalID = Column(Integer, primary_key=True)
     AsesorObjetivoAnio = Column(SmallInteger, primary_key=True)
@@ -92,7 +92,7 @@ class DoctoDetalle(Base):
     DoctoDetallePVenta = Column(Numeric(11, 3))
     DoctoDetalleImporte = Column(Numeric(11, 3))
     DoctoDetalleMSPN = Column(String(10))
-    DoctoDetalleCostoComercial = Column(Numeric(11, 3))
+    DoctoDetalleCostoCompra = Column(Numeric(11, 3))
     DoctoDetalleGrupo = Column(String(2))
     DoctoDetalleSerClas = Column(String(2))
     DoctoDetalleRin = Column(Integer)

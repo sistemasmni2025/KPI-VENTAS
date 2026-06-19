@@ -5,6 +5,7 @@ import { SalesChart } from '../components/SalesChart';
 import { useEmpresa } from '../context/EmpresaContext';
 import { SmartFilterBar } from '../components/SmartFilterBar';
 import type { FilterState } from '../components/SmartFilterBar';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 export function Dashboard() {
   const { selectedEmpresa } = useEmpresa();
@@ -23,44 +24,93 @@ export function Dashboard() {
     tendencia_ventas: "+0%",
     tendencia_ventas_val: 0,
     tendencia_ticket: "+0%",
-    tendencia_clientes: "+0%"
+    tendencia_clientes: "+0%",
+    sales_trend: [] as { name: string; Ventas: number; Meta: number }[],
+    brand_distribution: [] as { name: string; value: number }[],
+    category_distribution: [] as { name: string; value: number }[],
+    advisor_sales: [] as { name: string; Ventas: number; Meta: number }[],
+    group_sales: [] as { name: string; Ventas: number; Meta: number; categoria: string }[]
   });
 
-  // Cargar sucursales (mock o reales)
+  // Cargar sucursales y asesores
   useEffect(() => {
     fetch('http://127.0.0.1:8001/api/sucursales')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          // Filtrar por empresa si aplica
           const filtered = selectedEmpresa ? data.filter(d => d.empresa_id === selectedEmpresa.id || d.empresa_id == null) : data;
           setSucursales(filtered.map(s => ({ id: String(s.id), nombre: s.nombre })));
         }
       })
-      .catch(err => console.error(err));
+      .catch(err => console.error("Error cargando sucursales:", err));
       
-    // TODO: Fetch asesores
-    setAsesores([
-      { id: '1', nombre: 'Juan Perez' },
-      { id: '2', nombre: 'Maria Gomez' }
-    ]);
+    let asesoresUrl = 'http://127.0.0.1:8001/api/asesores';
+    if (selectedEmpresa) {
+      asesoresUrl += `?empresa_id=${selectedEmpresa.id}`;
+    }
+    fetch(asesoresUrl)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAsesores(data.map(a => ({ id: String(a.id), nombre: a.nombre })));
+        }
+      })
+      .catch(err => console.error("Error cargando asesores:", err));
   }, [selectedEmpresa]);
 
   useEffect(() => {
-    // Al cambiar los filtros, volvemos a traer los KPIs
     let url = 'http://127.0.0.1:8001/api/dashboard/kpis';
+    const params = new URLSearchParams();
     if (selectedEmpresa) {
-      url += `?empresa_id=${selectedEmpresa.id}`;
-      // TODO: Añadir filtros al URL (ej: &periodo=Mes&sucursales=1,2,3)
+      params.append('empresa_id', String(selectedEmpresa.id));
+    }
+    if (filters) {
+      if (filters.fechaInicio) params.append('fecha_inicio', filters.fechaInicio);
+      if (filters.fechaFin) params.append('fecha_fin', filters.fechaFin);
+      if (filters.sucursales && filters.sucursales.length > 0) {
+        params.append('sucursales', filters.sucursales.join(','));
+      }
+      if (filters.asesores && filters.asesores.length > 0) {
+        params.append('asesores', filters.asesores.join(','));
+      }
+      if (filters.categoriasCliente && filters.categoriasCliente.length > 0) {
+        params.append('categorias_cliente', filters.categoriasCliente.join(','));
+      }
+      if (filters.manoDeObra && filters.manoDeObra.length > 0) {
+        params.append('mano_de_obra', filters.manoDeObra.join(','));
+      }
+      if (filters.talleresExternos && filters.talleresExternos.length > 0) {
+        params.append('talleres_externos', filters.talleresExternos.join(','));
+      }
+      if (filters.gruposProducto && filters.gruposProducto.length > 0) {
+        params.append('grupos_producto', filters.gruposProducto.join(','));
+      }
+    }
+    const queryString = params.toString();
+    if (queryString) {
+      url += `?${queryString}`;
     }
     fetch(url)
       .then(res => res.json())
       .then(data => {
         if (data && !data.error) {
-          setKpis(data);
+          setKpis({
+            ventas_totales: data.ventas_totales || 0,
+            ticket_promedio: data.ticket_promedio || 0,
+            nuevos_clientes: data.nuevos_clientes || 0,
+            tendencia_ventas: data.tendencia_ventas || "+0%",
+            tendencia_ventas_val: data.tendencia_ventas_val || 0,
+            tendencia_ticket: data.tendencia_ticket || "+0%",
+            tendencia_clientes: data.tendencia_clientes || "+0%",
+            sales_trend: data.sales_trend || [],
+            brand_distribution: data.brand_distribution || [],
+            category_distribution: data.category_distribution || [],
+            advisor_sales: data.advisor_sales || [],
+            group_sales: data.group_sales || []
+          });
         }
       })
-      .catch(err => console.error("Error conectando al backend:", err));
+      .catch(err => console.error("Error cargando KPIs:", err));
   }, [selectedEmpresa, filters]); // Se ejecuta al cambiar filtros
 
   const formatCurrency = (val: number) => 
@@ -73,6 +123,9 @@ export function Dashboard() {
     { id: 'servicios', label: 'Servicios & Otros' },
   ];
 
+  const COLORS = ['#62D9F3', '#F2AA27', '#E11D48', '#9333EA', '#10B981', '#64748B'];
+
+  // Contenido por Pestaña
   return (
     <div className="flex flex-col min-h-screen relative z-10 bg-transparent">
       {/* 1. Smart Filter Bar Flotante (Colapsable) */}
@@ -116,12 +169,35 @@ export function Dashboard() {
         {activeTab === 'general' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <ChartCard title="Tendencia de Ventas (Acumulado)" type="bar">
-              <SalesChart />
+              <SalesChart data={kpis.sales_trend} />
             </ChartCard>
             <ChartCard title="Distribución de Ventas vs Objetivo" type="pie">
-              <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">
-                Gráfica de Pastel (Pendiente de Datos)
-              </div>
+              {kpis.brand_distribution.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={kpis.brand_distribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {kpis.brand_distribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `$${(value as number).toLocaleString()}`} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">
+                  Sin datos de ventas para el periodo seleccionado
+                </div>
+              )}
             </ChartCard>
           </div>
         )}
@@ -129,13 +205,64 @@ export function Dashboard() {
         {activeTab === 'auto' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <ChartCard title="Ventas vs Objetivo Auto/Camnta por Grupo" type="bar">
-               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Ventas vs Objetivo (Pendiente)</div>
+              {kpis.group_sales.filter(g => g.categoria === 'AUTO').length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={kpis.group_sales.filter(g => g.categoria === 'AUTO')}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 9 }} />
+                    <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
+                    <Legend />
+                    <Bar dataKey="Ventas" fill="#62D9F3" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Meta" fill="#F2AA27" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
+              )}
             </ChartCard>
             <ChartCard title="Ventas por Categoria de Cliente Auto/Camnta" type="pie">
-               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Gráfica de Pastel (Pendiente)</div>
+              {kpis.category_distribution.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={kpis.category_distribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {kpis.category_distribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `$${(value as number).toLocaleString()}`} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
+              )}
             </ChartCard>
             <ChartCard title="Ventas vs Objetivo por Asesor Auto/Camnta" type="bar" className="lg:col-span-2">
-               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Gráfica de Barras (Pendiente)</div>
+              {kpis.advisor_sales.length > 0 ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart data={kpis.advisor_sales}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 9 }} />
+                    <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
+                    <Legend />
+                    <Bar dataKey="Ventas" fill="#62D9F3" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Meta" fill="#F2AA27" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
+              )}
             </ChartCard>
           </div>
         )}
@@ -143,16 +270,81 @@ export function Dashboard() {
         {activeTab === 'camion' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <ChartCard title="Ventas vs Objetivo Camion por Grupo" type="bar">
-               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Ventas vs Objetivo (Pendiente)</div>
+              {kpis.group_sales.filter(g => g.categoria === 'CAMION').length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={kpis.group_sales.filter(g => g.categoria === 'CAMION')}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 9 }} />
+                    <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
+                    <Legend />
+                    <Bar dataKey="Ventas" fill="#62D9F3" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Meta" fill="#F2AA27" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
+              )}
             </ChartCard>
             <ChartCard title="Ventas por Categoria de Cliente Camion" type="pie">
-               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Gráfica de Pastel (Pendiente)</div>
+              {kpis.category_distribution.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={kpis.category_distribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {kpis.category_distribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `$${(value as number).toLocaleString()}`} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
+              )}
             </ChartCard>
             <ChartCard title="Ventas vs Objetivo Muevetierra por Grupo" type="bar">
-               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Ventas vs Objetivo (Pendiente)</div>
+              {kpis.group_sales.filter(g => g.categoria === 'MUEVETIERRA').length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={kpis.group_sales.filter(g => g.categoria === 'MUEVETIERRA')}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 9 }} />
+                    <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
+                    <Legend />
+                    <Bar dataKey="Ventas" fill="#62D9F3" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Meta" fill="#F2AA27" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
+              )}
             </ChartCard>
             <ChartCard title="Ventas vs Objetivo por Asesor Camion / Muevetierra" type="bar" className="lg:col-span-2">
-               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Gráfica de Barras (Pendiente)</div>
+              {kpis.advisor_sales.length > 0 ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart data={kpis.advisor_sales}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 9 }} />
+                    <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
+                    <Legend />
+                    <Bar dataKey="Ventas" fill="#62D9F3" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Meta" fill="#F2AA27" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
+              )}
             </ChartCard>
           </div>
         )}
@@ -160,16 +352,53 @@ export function Dashboard() {
         {activeTab === 'servicios' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <ChartCard title="Ventas vs Objetivo Patio de Servicio" type="bar">
-               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Ventas vs Objetivo (Pendiente)</div>
+              {kpis.group_sales.filter(g => g.categoria === 'OTROS').length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={kpis.group_sales.filter(g => g.categoria === 'OTROS')}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 9 }} />
+                    <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
+                    <Legend />
+                    <Bar dataKey="Ventas" fill="#62D9F3" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Meta" fill="#F2AA27" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
+              )}
             </ChartCard>
             <ChartCard title="Ventas de Talleres Externos" type="pie">
-               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Gráfica de Pastel (Pendiente)</div>
+              <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de talleres externos</div>
             </ChartCard>
             <ChartCard title="Ventas de Camioneta de servicio" type="bar">
-               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Gráfica de Barras (Pendiente)</div>
+              <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de camioneta de servicio</div>
             </ChartCard>
             <ChartCard title="Ventas vs Objetivo Motocicleta" type="pie">
-               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Gráfica de Pastel (Pendiente)</div>
+              {kpis.group_sales.filter(g => g.categoria === 'MOTOCICLETA').length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={kpis.group_sales.filter(g => g.categoria === 'MOTOCICLETA').map(g => ({ name: g.name, value: g.Ventas }))}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {kpis.group_sales.filter(g => g.categoria === 'MOTOCICLETA').map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `$${(value as number).toLocaleString()}`} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de motocicletas</div>
+              )}
             </ChartCard>
           </div>
         )}
