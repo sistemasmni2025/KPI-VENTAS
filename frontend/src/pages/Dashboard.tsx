@@ -3,19 +3,60 @@ import { ShoppingCart, TrendingUp, PieChart as PieChartIcon, BarChart2 } from 'l
 import { useOutletContext } from 'react-router-dom';
 import { SalesChart } from '../components/SalesChart';
 import { useEmpresa } from '../context/EmpresaContext';
-import { SmartFilterBar } from '../components/SmartFilterBar';
+import { SmartFilterBar, defaultFilters } from '../components/SmartFilterBar';
 import type { FilterState } from '../components/SmartFilterBar';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { ThreeDBarChart, ThreeDDonutChart } from '../components/ThreeDCharts';
+
+const formatPeriodText = (inicio: string, fin: string) => {
+  const parseDate = (dStr: string) => {
+    const parts = dStr.split('-');
+    if (parts.length === 3) {
+      const year = parts[0];
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      return `${day} ${months[monthIdx]} ${year}`;
+    }
+    return dStr;
+  };
+  return `${parseDate(inicio)} al ${parseDate(fin)}`;
+};
 
 export function Dashboard() {
   const { selectedEmpresa } = useEmpresa();
-  const { isFilterOpen, setIsFilterOpen } = useOutletContext<{isFilterOpen: boolean, setIsFilterOpen: (val: boolean) => void}>() || { isFilterOpen: true, setIsFilterOpen: () => {} };
-  
+  const { isFilterOpen, setIsFilterOpen } = useOutletContext<{ isFilterOpen: boolean, setIsFilterOpen: (val: boolean) => void }>() || { isFilterOpen: true, setIsFilterOpen: () => { } };
+
   const [activeTab, setActiveTab] = useState('general');
-  const [filters, setFilters] = useState<FilterState | null>(null);
-  
-  const [sucursales, setSucursales] = useState<{id: string, nombre: string}[]>([]);
-  const [asesores, setAsesores] = useState<{id: string, nombre: string}[]>([]);
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const [activePeriod, setActivePeriod] = useState<{ inicio: string; fin: string } | null>(null);
+
+  const [sucursales, setSucursales] = useState<{ id: string, nombre: string }[]>([]);
+  const [asesores, setAsesores] = useState<{ id: string, nombre: string }[]>([]);
+
+  const handleAdvisorClick = (advisorName: string) => {
+    const found = asesores.find(a => a.nombre.toLowerCase() === advisorName.toLowerCase());
+    if (found) {
+      setFilters(prev => {
+        const current = prev.asesores || [];
+        const isAlreadyFiltered = current.includes(found.id);
+        const nextAsesores = isAlreadyFiltered
+          ? current.filter(id => id !== found.id)
+          : [...current, found.id];
+        return { ...prev, asesores: nextAsesores };
+      });
+    }
+  };
+
+  const handleCategoryClick = (categoryName: string) => {
+    setFilters(prev => {
+      const current = prev.categoriasCliente || [];
+      const isAlreadyFiltered = current.includes(categoryName);
+      const nextCategories = isAlreadyFiltered
+        ? current.filter(c => c !== categoryName)
+        : [...current, categoryName];
+      return { ...prev, categoriasCliente: nextCategories };
+    });
+  };
 
   const [kpis, setKpis] = useState({
     ventas_totales: 0,
@@ -43,7 +84,7 @@ export function Dashboard() {
         }
       })
       .catch(err => console.error("Error cargando sucursales:", err));
-      
+
     let asesoresUrl = 'http://127.0.0.1:8001/api/asesores';
     if (selectedEmpresa) {
       asesoresUrl += `?empresa_id=${selectedEmpresa.id}`;
@@ -108,12 +149,15 @@ export function Dashboard() {
             advisor_sales: data.advisor_sales || [],
             group_sales: data.group_sales || []
           });
+          if (data.fecha_inicio && data.fecha_fin) {
+            setActivePeriod({ inicio: data.fecha_inicio, fin: data.fecha_fin });
+          }
         }
       })
       .catch(err => console.error("Error cargando KPIs:", err));
   }, [selectedEmpresa, filters]); // Se ejecuta al cambiar filtros
 
-  const formatCurrency = (val: number) => 
+  const formatCurrency = (val: number) =>
     new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(val);
 
   const TABS = [
@@ -130,33 +174,86 @@ export function Dashboard() {
     <div className="flex flex-col min-h-screen relative z-10 bg-transparent">
       {/* 1. Smart Filter Bar Flotante (Colapsable) */}
       <div className={`transition-all duration-500 origin-top relative z-50 ${isFilterOpen ? 'max-h-[800px] opacity-100 scale-y-100 mb-4 overflow-visible' : 'max-h-0 opacity-0 scale-y-95 mb-0 overflow-hidden pointer-events-none'}`}>
-        <SmartFilterBar 
-          onFilterChange={setFilters} 
-          availableSucursales={sucursales} 
-          availableAsesores={asesores} 
+        <SmartFilterBar
+          onFilterChange={setFilters}
+          availableSucursales={sucursales}
+          availableAsesores={asesores}
           onClose={() => setIsFilterOpen(false)}
         />
       </div>
 
       <div className={`p-4 md:px-8 space-y-8 max-w-[1400px] mx-auto w-full animate-fade-in transition-all duration-500 ${!isFilterOpen ? 'mt-4' : ''}`}>
-        {/* Pestañas (Tabs) de Navegación */}
-        <div className="flex border-b border-slate-200/60 pb-4">
-          <div className="flex bg-[var(--color-surface-card)] shadow-sm border border-[var(--color-border-light)] p-1.5 rounded-2xl">
+
+        {/* Pestañas (Tabs) de Navegación y Periodo Activo en una sola fila */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-200/60 pb-4 gap-4">
+          <div className="flex bg-[var(--color-surface-card)] shadow-sm border border-[var(--color-border-light)] p-1.5 rounded-2xl self-start">
             {TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
-                  activeTab === tab.id 
-                    ? 'bg-[var(--color-brand-50)] text-[var(--color-brand-600)] shadow-sm' 
+                className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${activeTab === tab.id
+                    ? 'bg-[var(--color-brand-50)] text-[var(--color-brand-600)] shadow-sm'
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface-bg)]'
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>
             ))}
           </div>
+
+          {/* Banner de Periodo Activo (Rojo suave/Rose para contraste, a la derecha) */}
+          {activePeriod && (
+            <div className="inline-flex items-center gap-2 bg-rose-50 border border-rose-100/60 rounded-2xl px-4 py-2 text-rose-700 shadow-sm animate-fade-in self-start sm:self-auto">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-wider">
+                Periodo: {formatPeriodText(activePeriod.inicio, activePeriod.fin)}
+              </span>
+            </div>
+          )}
         </div>
+
+        {/* Barra de Filtros Interactivos Activos (Drill-down) */}
+        {(filters.asesores.length > 0 || filters.categoriasCliente.length > 0) && (
+          <div className="bg-indigo-50/70 border border-indigo-100/80 p-4 rounded-3xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-fade-in">
+            <div className="flex items-center space-x-2.5 flex-wrap gap-y-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse flex-shrink-0" />
+              <span className="text-xs font-black text-indigo-950 uppercase tracking-wider">Segmentación activa:</span>
+              <div className="flex flex-wrap gap-1.5 pl-1">
+                {filters.asesores.map(id => {
+                  const name = asesores.find(a => a.id === id)?.nombre || `Asesor ${id}`;
+                  return (
+                    <span key={id} className="inline-flex items-center gap-1 bg-white border border-indigo-200 text-indigo-700 text-[10px] font-black px-2.5 py-1 rounded-xl shadow-sm">
+                      Asesor: {name}
+                      <button
+                        onClick={() => handleAdvisorClick(name)}
+                        className="text-indigo-400 hover:text-indigo-700 cursor-pointer ml-1 text-xs font-bold font-mono"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
+                {filters.categoriasCliente.map(cat => (
+                  <span key={cat} className="inline-flex items-center gap-1 bg-white border border-indigo-200 text-indigo-700 text-[10px] font-black px-2.5 py-1 rounded-xl shadow-sm">
+                    Cliente: {cat}
+                    <button
+                      onClick={() => handleCategoryClick(cat)}
+                      className="text-indigo-400 hover:text-indigo-700 cursor-pointer ml-1 text-xs font-bold font-mono"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={() => setFilters(prev => ({ ...prev, asesores: [], categoriasCliente: [] }))}
+              className="text-xs font-black text-indigo-600 hover:text-rose-600 hover:bg-rose-50 px-3.5 py-2 rounded-xl border border-indigo-200 bg-white hover:border-rose-200 transition-all cursor-pointer shadow-sm self-start sm:self-auto"
+            >
+              Restablecer Filtros
+            </button>
+          </div>
+        )}
 
         {/* Tarjetas de Resumen (KPIs Top) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -172,32 +269,9 @@ export function Dashboard() {
               <SalesChart data={kpis.sales_trend} />
             </ChartCard>
             <ChartCard title="Distribución de Ventas vs Objetivo" type="pie">
-              {kpis.brand_distribution.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={kpis.brand_distribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {kpis.brand_distribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `$${(value as number).toLocaleString()}`} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">
-                  Sin datos de ventas para el periodo seleccionado
-                </div>
-              )}
+              <ThreeDDonutChart
+                data={kpis.brand_distribution}
+              />
             </ChartCard>
           </div>
         )}
@@ -205,64 +279,21 @@ export function Dashboard() {
         {activeTab === 'auto' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <ChartCard title="Ventas vs Objetivo Auto/Camnta por Grupo" type="bar">
-              {kpis.group_sales.filter(g => g.categoria === 'AUTO').length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={kpis.group_sales.filter(g => g.categoria === 'AUTO')}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 9 }} />
-                    <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
-                    <Legend />
-                    <Bar dataKey="Ventas" fill="#62D9F3" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Meta" fill="#F2AA27" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
-              )}
+              <ThreeDBarChart
+                data={kpis.group_sales.filter(g => g.categoria === 'AUTO')}
+                colorByBrand={true}
+              />
             </ChartCard>
             <ChartCard title="Ventas por Categoria de Cliente Auto/Camnta" type="pie">
-              {kpis.category_distribution.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={kpis.category_distribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {kpis.category_distribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `$${(value as number).toLocaleString()}`} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
-              )}
+              <ThreeDDonutChart
+                data={kpis.category_distribution}
+              />
             </ChartCard>
             <ChartCard title="Ventas vs Objetivo por Asesor Auto/Camnta" type="bar" className="lg:col-span-2">
-              {kpis.advisor_sales.length > 0 ? (
-                <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={kpis.advisor_sales}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 9 }} />
-                    <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
-                    <Legend />
-                    <Bar dataKey="Ventas" fill="#62D9F3" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Meta" fill="#F2AA27" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
-              )}
+              <ThreeDBarChart
+                data={kpis.advisor_sales}
+                colorByGender={true}
+              />
             </ChartCard>
           </div>
         )}
@@ -270,103 +301,38 @@ export function Dashboard() {
         {activeTab === 'camion' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <ChartCard title="Ventas vs Objetivo Camion por Grupo" type="bar">
-              {kpis.group_sales.filter(g => g.categoria === 'CAMION').length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={kpis.group_sales.filter(g => g.categoria === 'CAMION')}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 9 }} />
-                    <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
-                    <Legend />
-                    <Bar dataKey="Ventas" fill="#62D9F3" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Meta" fill="#F2AA27" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
-              )}
+              <ThreeDBarChart
+                data={kpis.group_sales.filter(g => g.categoria === 'CAMION')}
+                colorByBrand={true}
+              />
             </ChartCard>
             <ChartCard title="Ventas por Categoria de Cliente Camion" type="pie">
-              {kpis.category_distribution.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={kpis.category_distribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {kpis.category_distribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `$${(value as number).toLocaleString()}`} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
-              )}
+              <ThreeDDonutChart
+                data={kpis.category_distribution}
+              />
             </ChartCard>
             <ChartCard title="Ventas vs Objetivo Muevetierra por Grupo" type="bar">
-              {kpis.group_sales.filter(g => g.categoria === 'MUEVETIERRA').length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={kpis.group_sales.filter(g => g.categoria === 'MUEVETIERRA')}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 9 }} />
-                    <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
-                    <Legend />
-                    <Bar dataKey="Ventas" fill="#62D9F3" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Meta" fill="#F2AA27" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
-              )}
+              <ThreeDBarChart
+                data={kpis.group_sales.filter(g => g.categoria === 'MUEVETIERRA')}
+                colorByBrand={true}
+              />
             </ChartCard>
             <ChartCard title="Ventas vs Objetivo por Asesor Camion / Muevetierra" type="bar" className="lg:col-span-2">
-              {kpis.advisor_sales.length > 0 ? (
-                <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={kpis.advisor_sales}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 9 }} />
-                    <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
-                    <Legend />
-                    <Bar dataKey="Ventas" fill="#62D9F3" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Meta" fill="#F2AA27" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
-              )}
+              <ThreeDBarChart
+                data={kpis.advisor_sales}
+                colorByGender={true}
+              />
             </ChartCard>
           </div>
         )}
-        
+
         {activeTab === 'servicios' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <ChartCard title="Ventas vs Objetivo Patio de Servicio" type="bar">
-              {kpis.group_sales.filter(g => g.categoria === 'OTROS').length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={kpis.group_sales.filter(g => g.categoria === 'OTROS')}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 9 }} />
-                    <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
-                    <Legend />
-                    <Bar dataKey="Ventas" fill="#62D9F3" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Meta" fill="#F2AA27" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de ventas</div>
-              )}
+              <ThreeDBarChart
+                data={kpis.group_sales.filter(g => g.categoria === 'OTROS')}
+                colorByBrand={true}
+              />
             </ChartCard>
             <ChartCard title="Ventas de Talleres Externos" type="pie">
               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de talleres externos</div>
@@ -375,30 +341,9 @@ export function Dashboard() {
               <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de camioneta de servicio</div>
             </ChartCard>
             <ChartCard title="Ventas vs Objetivo Motocicleta" type="pie">
-              {kpis.group_sales.filter(g => g.categoria === 'MOTOCICLETA').length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={kpis.group_sales.filter(g => g.categoria === 'MOTOCICLETA').map(g => ({ name: g.name, value: g.Ventas }))}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {kpis.group_sales.filter(g => g.categoria === 'MOTOCICLETA').map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `$${(value as number).toLocaleString()}`} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-400 font-medium italic">Sin datos de motocicletas</div>
-              )}
+              <ThreeDDonutChart
+                data={kpis.group_sales.filter(g => g.categoria === 'MOTOCICLETA').map(g => ({ name: g.name, value: g.Ventas }))}
+              />
             </ChartCard>
           </div>
         )}
@@ -413,14 +358,15 @@ function StatCard({ title, value, trend, negative = false }: { title: string, va
       <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-500 transform group-hover:scale-110">
         <TrendingUp size={100} className="text-[var(--color-brand-500)]" />
       </div>
-      <span className="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-2">{title}</span>
-      <span className="text-4xl font-black text-[var(--color-text-main)] tracking-tight leading-none my-1">{value}</span>
-      <div className="mt-5 flex items-center">
-        <span className={`text-xs font-extrabold px-3 py-1 rounded-full ${
-          negative 
-            ? 'bg-rose-50 text-rose-600' 
+      <div className="flex items-center justify-between gap-2 mb-2 z-10">
+        <span className="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-widest">{title}</span>
+      </div>
+      <span className="text-4xl font-black text-[var(--color-text-main)] tracking-tight leading-none my-1 z-10">{value}</span>
+      <div className="mt-5 flex items-center z-10">
+        <span className={`text-xs font-extrabold px-3 py-1 rounded-full ${negative
+            ? 'bg-rose-50 text-rose-600'
             : 'bg-emerald-50 text-emerald-600'
-        }`}>
+          }`}>
           {trend}
         </span>
         <span className="text-xs text-slate-400 ml-3 font-medium">vs periodo anterior</span>
@@ -433,7 +379,9 @@ function ChartCard({ title, children, type, className = '' }: { title: string, c
   return (
     <div className={`bg-[var(--color-surface-card)] rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[var(--color-border-light)] flex flex-col overflow-hidden relative min-h-[380px] hover:shadow-[0_20px_40px_rgb(0,0,0,0.06)] transition-shadow duration-500 ${className}`}>
       <div className="px-6 py-5 border-b border-[var(--color-border-light)]/50 flex items-center justify-between bg-[var(--color-surface-bg)]/50">
-        <h3 className="font-bold text-[var(--color-text-main)] text-base tracking-wide">{title}</h3>
+        <div>
+          <h3 className="font-bold text-[var(--color-text-main)] text-base tracking-wide">{title}</h3>
+        </div>
         <div className="p-2 bg-[var(--color-brand-50)] rounded-xl text-[var(--color-brand-600)] shadow-sm">
           {type === 'pie' ? <PieChartIcon size={18} /> : <BarChart2 size={18} />}
         </div>

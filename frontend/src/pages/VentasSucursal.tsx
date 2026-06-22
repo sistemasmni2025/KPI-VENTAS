@@ -50,6 +50,21 @@ const BRANCH_NAMES: { [key: number]: string } = {
   13: "San Juan del Río"
 };
 
+const formatPeriodText = (inicio: string, fin: string) => {
+  const parseDate = (dStr: string) => {
+    const parts = dStr.split('-');
+    if (parts.length === 3) {
+      const year = parts[0];
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      return `${day} ${months[monthIdx]} ${year}`;
+    }
+    return dStr;
+  };
+  return `${parseDate(inicio)} al ${parseDate(fin)}`;
+};
+
 export function VentasSucursal() {
   const { id } = useParams<{ id: string }>();
   const { selectedEmpresa } = useEmpresa();
@@ -59,6 +74,7 @@ export function VentasSucursal() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SucursalSalesData | null>(null);
   const [activeTab, setActiveTab] = useState("AUTO-CAMIONETA");
+  const [activePeriod, setActivePeriod] = useState<{ inicio: string; fin: string } | null>(null);
 
   const [filters, setFilters] = useState<FilterState | null>(null);
   const [sucursales, setSucursales] = useState<{id: string, nombre: string}[]>([]);
@@ -142,6 +158,9 @@ export function VentasSucursal() {
           setError(resData.error);
         } else {
           setData(resData);
+          if (resData.fecha_inicio && resData.fecha_fin) {
+            setActivePeriod({ inicio: resData.fecha_inicio, fin: resData.fecha_fin });
+          }
           const cats = Object.keys(resData.categorias || {});
           if (cats.length > 0 && !cats.includes(activeTab)) {
             setActiveTab(cats[0]);
@@ -161,8 +180,8 @@ export function VentasSucursal() {
   }, [id, selectedEmpresa, filters]);
 
   const getAlcanceColor = (alcance: number) => {
-    if (alcance >= 100) return { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-100", fill: "text-emerald-500" };
-    if (alcance >= 80) return { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-100", fill: "text-amber-500" };
+    if (alcance >= 85) return { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-100", fill: "text-emerald-500" };
+    if (alcance >= 69) return { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-100", fill: "text-amber-500" };
     return { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-100", fill: "text-rose-500" };
   };
 
@@ -204,7 +223,7 @@ export function VentasSucursal() {
                 {sucursalNombre}
               </h1>
               <p className="text-slate-500 text-sm mt-1">
-                Cumplimiento de objetivos anuales por marca y categoría
+                Cumplimiento de objetivos por marca y categoría
               </p>
             </div>
           </div>
@@ -220,28 +239,40 @@ export function VentasSucursal() {
         </div>
       ) : null}
 
-      {/* Tabs Selector de Categoría (Auto-Camioneta / Camión) */}
-      <div className="flex border-b border-slate-200">
-        <button
-          onClick={() => setActiveTab("AUTO-CAMIONETA")}
-          className={`flex items-center space-x-2 px-6 py-3 border-b-2 font-bold text-sm transition-all cursor-pointer ${activeTab === "AUTO-CAMIONETA"
-            ? "border-indigo-600 text-indigo-600"
-            : "border-transparent text-slate-400 hover:text-slate-600"
-            }`}
-        >
-          <Car size={16} />
-          <span>Auto - Camioneta</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("CAMIÓN")}
-          className={`flex items-center space-x-2 px-6 py-3 border-b-2 font-bold text-sm transition-all cursor-pointer ${activeTab === "CAMIÓN"
-            ? "border-indigo-600 text-indigo-600"
-            : "border-transparent text-slate-400 hover:text-slate-600"
-            }`}
-        >
-          <Truck size={16} />
-          <span>Camión</span>
-        </button>
+      {/* Tabs Selector de Categoría y Periodo Activo */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 gap-4">
+        <div className="flex">
+          <button
+            onClick={() => setActiveTab("AUTO-CAMIONETA")}
+            className={`flex items-center space-x-2 px-6 py-3 border-b-2 font-bold text-sm transition-all cursor-pointer ${activeTab === "AUTO-CAMIONETA"
+              ? "border-indigo-600 text-indigo-600"
+              : "border-transparent text-slate-400 hover:text-slate-600"
+              }`}
+          >
+            <Car size={16} />
+            <span>Auto - Camioneta</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("CAMIÓN")}
+            className={`flex items-center space-x-2 px-6 py-3 border-b-2 font-bold text-sm transition-all cursor-pointer ${activeTab === "CAMIÓN"
+              ? "border-indigo-600 text-indigo-600"
+              : "border-transparent text-slate-400 hover:text-slate-600"
+              }`}
+          >
+            <Truck size={16} />
+            <span>Camión</span>
+          </button>
+        </div>
+
+        {/* Banner de Periodo Activo (Alineado a la derecha, en azul/indigo) */}
+        {activePeriod && (
+          <div className="inline-flex items-center gap-2 bg-indigo-50/70 border border-indigo-100/50 rounded-2xl px-4 py-2 text-indigo-700 shadow-sm animate-fade-in self-start sm:self-auto mb-2">
+            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-wider">
+              Periodo: {formatPeriodText(activePeriod.inicio, activePeriod.fin)}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Vista de la Categoría Activa */}
@@ -260,7 +291,7 @@ export function VentasSucursal() {
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{brand.marca}</span>
                     <div className="space-y-1">
                       <div className="text-2xl font-black text-slate-900">{brand.ventas_anual.toLocaleString()}</div>
-                      <div className="text-xs text-slate-400">Obj. Anual: {brand.objetivo_anual.toLocaleString()}</div>
+                      <div className="text-xs text-slate-400">Objetivo: {brand.objetivo_anual.toLocaleString()}</div>
                     </div>
                     <span className={`inline-flex items-center text-xs font-bold px-2.5 py-0.5 rounded-full ${color.bg} ${color.text} border ${color.border}`}>
                       <TrendingUp size={12} className="mr-1" />
@@ -276,6 +307,16 @@ export function VentasSucursal() {
 
           {/* Tabla Comparativa Mensual Consolidada */}
           <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <span>Desglose Mensual</span>
+                {activePeriod && (
+                  <span className="text-[10px] text-indigo-600 bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded-lg font-bold">
+                    {formatPeriodText(activePeriod.inicio, activePeriod.fin)}
+                  </span>
+                )}
+              </h3>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>

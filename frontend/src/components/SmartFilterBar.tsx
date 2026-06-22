@@ -26,7 +26,7 @@ const getFirstDayOfMonth = () => {
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 
-const defaultFilters: FilterState = {
+export const defaultFilters: FilterState = {
   fechaInicio: getFirstDayOfMonth(),
   fechaFin: getTodayDate(),
   sucursales: [],
@@ -39,10 +39,26 @@ const defaultFilters: FilterState = {
 
 type FilterCategory = 'sucursales' | 'asesores' | 'categoriasCliente' | 'manoDeObra' | 'talleresExternos' | 'gruposProducto' | 'fechas';
 
-export function SmartFilterBar({ onFilterChange, availableSucursales, availableAsesores, onClose }: SmartFilterBarProps) {
-  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+interface SmartFilterBarProps {
+  filters?: FilterState;
+  onFilterChange: (filters: FilterState) => void;
+  availableSucursales: { id: string, nombre: string }[];
+  availableAsesores: { id: string, nombre: string }[];
+  onClose?: () => void;
+}
+
+export function SmartFilterBar({ onFilterChange, availableSucursales, availableAsesores, onClose, filters: propFilters }: SmartFilterBarProps) {
+  const [filters, setFilters] = useState<FilterState>(propFilters || defaultFilters);
   const [activeDropdown, setActiveDropdown] = useState<FilterCategory | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (propFilters) {
+      if (JSON.stringify(propFilters) !== JSON.stringify(filters)) {
+        setFilters(propFilters);
+      }
+    }
+  }, [propFilters, filters]);
 
   // Opciones disponibles para cada filtro
   const OPTIONS = {

@@ -388,12 +388,21 @@ def get_ventas_sucursal(
 
         # Fallback si asesorobjetivo está vacío
         if total_obj_sum == 0.0:
+            brand_multipliers = {
+                "Michelin": 1.18,      # ~84.7% alcance mensual (Amarillo)
+                "BFGoodrich": 1.28,    # ~78.1% alcance mensual (Amarillo)
+                "Uniroyal": 1.48,      # ~67.5% alcance mensual (Rojo)
+                "Otras Marcas": 1.12,  # ~89.2% alcance mensual (Verde)
+                "Valian": 1.22,        # ~81.9% alcance mensual (Amarillo)
+                "Nipon": 1.32          # ~75.7% alcance mensual (Amarillo)
+            }
             for cat in data_struct:
                 for brand in data_struct[cat]:
+                    mult = brand_multipliers.get(brand, 1.15)
                     for m in range(1, 13):
                         vts = data_struct[cat][brand][m]["ventas"]
                         if vts > 0:
-                            data_struct[cat][brand][m]["objetivo"] = round(vts * 1.08, 2)
+                            data_struct[cat][brand][m]["objetivo"] = round(vts * mult, 2)
                         else:
                             data_struct[cat][brand][m]["objetivo"] = 10.0
 
@@ -433,11 +442,16 @@ def get_ventas_sucursal(
                     "mensual": monthly_list
                 })
 
+        f_inicio_str = str(fecha_inicio_dt) if fecha_inicio_dt else f"{anio}-01-01"
+        f_fin_str = str(fecha_fin_dt) if fecha_fin_dt else f"{anio}-12-31"
+
         return {
             "sucursal_id": sucursal_id,
             "sucursal_nombre": sucursal_nombre,
             "anio": anio,
-            "categorias": result
+            "categorias": result,
+            "fecha_inicio": f_inicio_str,
+            "fecha_fin": f_fin_str
         }
     except Exception as e:
         return {"error": str(e)}
@@ -812,7 +826,9 @@ def get_kpis(
             "brand_distribution": brand_distribution,
             "category_distribution": category_distribution,
             "advisor_sales": advisor_sales,
-            "group_sales": group_sales
+            "group_sales": group_sales,
+            "fecha_inicio": str(fecha_inicio_dt),
+            "fecha_fin": str(fecha_fin_dt)
         }
     except Exception as e:
         return {"error": str(e)}
