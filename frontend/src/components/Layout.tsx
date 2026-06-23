@@ -385,6 +385,7 @@ export function Layout() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const orbisChatRef = useRef<HTMLDivElement>(null);
   const { selectedEmpresa, setSelectedEmpresa } = useEmpresa();
 
   const [messages, setMessages] = useState<{
@@ -592,16 +593,22 @@ export function Layout() {
       });
   }, []);
 
-  // Handle click outside to close dropdown
+  // Handle click outside to close dropdown or chatbot
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setVentasOpen(false);
       }
+      if (orbisOpen && orbisChatRef.current && !orbisChatRef.current.contains(event.target as Node)) {
+        const headerButton = document.querySelector('.orbis-header-btn');
+        if (!headerButton || !headerButton.contains(event.target as Node)) {
+          setOrbisOpen(false);
+        }
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [orbisOpen]);
 
   if (!selectedEmpresa) {
     return <Navigate to="/" replace />;
@@ -733,7 +740,7 @@ export function Layout() {
           
           <button 
             onClick={() => setOrbisOpen(true)}
-            className="flex items-center space-x-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-700 to-sky-600 hover:from-blue-600 hover:to-sky-500 text-white shadow-lg shadow-blue-500/30 transition-all hover:scale-105 cursor-pointer relative group"
+            className="flex items-center space-x-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-700 to-sky-600 hover:from-blue-600 hover:to-sky-500 text-white shadow-lg shadow-blue-500/30 transition-all hover:scale-105 cursor-pointer relative group orbis-header-btn"
           >
             <div className="absolute inset-0 bg-white/20 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <Sparkles size={16} className="animate-pulse text-amber-300" />
@@ -751,20 +758,9 @@ export function Layout() {
         </div>
       </header>
 
-      {/* Botón Flotante Launcher (si está cerrado) */}
-      {!orbisOpen && (
-        <button
-          onClick={() => setOrbisOpen(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-700 to-sky-600 hover:from-blue-600 hover:to-sky-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 cursor-pointer z-[90]"
-          title="Abrir Asistente Orbis"
-        >
-          <Sparkles size={24} className="animate-pulse text-amber-300" />
-        </button>
-      )}
-
       {/* Orbis Floating Chat Widget */}
       {orbisOpen && (
-        <div className="fixed bottom-6 right-6 w-[380px] h-[600px] max-h-[85vh] max-w-[calc(100vw-2rem)] bg-white border border-slate-200/80 rounded-[28px] shadow-[0_20px_50px_rgba(37,99,235,0.12)] flex flex-col z-[100] overflow-hidden transition-all duration-300 transform scale-100 origin-bottom-right animate-in fade-in slide-in-from-bottom-5 orbis-chat-widget">
+        <div ref={orbisChatRef} className="fixed bottom-6 right-6 w-[380px] h-[600px] max-h-[85vh] max-w-[calc(100vw-2rem)] bg-white border border-slate-200/80 rounded-[28px] shadow-[0_20px_50px_rgba(37,99,235,0.12)] flex flex-col z-[100] overflow-hidden transition-all duration-300 transform scale-100 origin-bottom-right animate-in fade-in slide-in-from-bottom-5 orbis-chat-widget">
           {/* Header */}
           <div className="p-3 bg-gradient-to-r from-blue-800 via-blue-900 to-slate-900 text-white flex items-center justify-between shrink-0 shadow-md">
             <div className="flex items-center space-x-2.5">

@@ -112,10 +112,21 @@ def get_sucursales():
 @app.get("/api/asesores")
 def get_asesores(empresa_id: int = None, db: Session = Depends(get_db)):
     try:
-        query = db.query(models.Asesor).filter(models.Asesor.AsesorStatus == True)
+        query = db.query(
+            models.Asesor.AsesorClave,
+            models.Asesor.AsesorNombre,
+            models.Asesor.EmpresaID
+        ).filter(models.Asesor.AsesorStatus == True)
+        
         if empresa_id is not None:
             query = query.filter(models.Asesor.EmpresaID == empresa_id)
-        asesores_raw = query.group_by(models.Asesor.AsesorNombre).order_by(models.Asesor.AsesorNombre).all()
+            
+        asesores_raw = query.group_by(
+            models.Asesor.AsesorClave,
+            models.Asesor.AsesorNombre,
+            models.Asesor.EmpresaID
+        ).order_by(models.Asesor.AsesorNombre).all()
+        
         return [{"id": str(a.AsesorClave), "nombre": a.AsesorNombre.strip(), "empresa_id": a.EmpresaID} for a in asesores_raw]
     except Exception as e:
         return {"error": str(e)}

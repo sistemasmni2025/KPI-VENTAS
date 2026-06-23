@@ -53,15 +53,21 @@ def obtener_esquema_bd() -> str:
 
 def ejecutar_query_sql(query: str) -> pl.DataFrame:
     """Ejecuta una consulta SQL en MySQL y la vuelca rápidamente a un DataFrame Polars."""
-    q_low = query.lower()
+    query_stripped = query.strip().rstrip(';')
+    q_low = query_stripped.lower()
+    
     unsafe_keywords = ['delete ', 'drop ', 'update ', 'insert ', 'truncate ', 'alter ', 'grant ', 'revoke ']
     if any(keyword in q_low for keyword in unsafe_keywords):
         raise ValueError("Bloqueo de Seguridad: Solo se permiten consultas SELECT (Lectura).")
         
+    # Auto-limitar para evitar caídas por WAN/Timeout en tablas masivas
+    if q_low.startswith("select ") and " limit " not in q_low:
+        query_stripped += " LIMIT 2000"
+        
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute(query)
+        cursor.execute(query_stripped)
         
         # Validar que sea un select antes de intentar extraer datos
         if cursor.description is None:
