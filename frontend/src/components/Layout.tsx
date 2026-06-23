@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutDashboard, ShoppingCart, Bell, ChevronDown, Building2, Repeat, Sparkles, Bot, X, Send, Database, Code, Table, Trash2, Mic, MicOff, Volume2, VolumeX, Loader2, ArrowUp, BarChart2, Download } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Bell, ChevronDown, Building2, Repeat, Sparkles, Bot, X, Send, Database, Code, Table, Trash2, Mic, MicOff, Volume2, VolumeX, Loader2, ArrowUp, BarChart2, Download, Maximize2 } from 'lucide-react';
 import { Outlet, NavLink, useLocation, Navigate, Link } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { useEmpresa } from '../context/EmpresaContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 
@@ -9,13 +10,28 @@ const SpeechRecognition = (window as any).SpeechRecognition || (window as any).w
 interface MessageDataViewerProps {
   registros: any[];
   tiempos?: { ia_segundos: number; bd_segundos: number };
-  sql_query?: string;
   total_registros?: number;
 }
 
-function MessageDataViewer({ registros, tiempos, sql_query, total_registros }: MessageDataViewerProps) {
+function MessageDataViewer({ registros, tiempos, total_registros }: MessageDataViewerProps) {
   const [activeView, setActiveView] = useState<'table' | 'chart'>('table');
-  const [sqlOpen, setSqlOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const popoutRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isMaximized) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (popoutRef.current && !popoutRef.current.contains(event.target as Node)) {
+        const chatWidget = document.querySelector('.orbis-chat-widget');
+        if (!chatWidget || !chatWidget.contains(event.target as Node)) {
+          setIsMaximized(false);
+        }
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isMaximized]);
 
   if (!registros || registros.length === 0) return null;
 
@@ -51,119 +67,264 @@ function MessageDataViewer({ registros, tiempos, sql_query, total_registros }: M
     document.body.removeChild(link);
   };
 
+  const filteredRegistros = registros.filter((row) => 
+    Object.values(row).some((val) => 
+      val !== null && String(val).toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  );
+
   return (
-    <div className="mt-3 border border-slate-100 rounded-xl overflow-hidden bg-slate-50/50 shadow-sm w-full">
-      <div className="px-3 py-2 bg-slate-100/60 border-b border-slate-200/50 flex justify-between items-center flex-wrap gap-2">
-        <div className="flex bg-slate-200/50 p-0.5 rounded-lg text-[10px]">
-          <button
-            onClick={() => setActiveView('table')}
-            className={`flex items-center gap-1 px-2 py-1 rounded-md font-bold transition-all ${activeView === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            <Table size={12} className="w-3 h-3" /> Tabla
-          </button>
-          {canChart && (
+    <>
+      <div 
+        className="mt-3 border border-slate-200/80 rounded-2xl overflow-hidden bg-white shadow-md w-full cursor-pointer hover:border-blue-300 transition-all duration-200 group"
+        onClick={() => setIsMaximized(true)}
+        title="Haz clic para ampliar visualización"
+      >
+        <div className="px-3 py-2 bg-slate-50 border-b border-slate-200/60 flex justify-between items-center flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex bg-slate-200/60 p-0.5 rounded-lg text-[10px]">
             <button
-              onClick={() => setActiveView('chart')}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md font-bold transition-all ${activeView === 'chart' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              onClick={() => setActiveView('table')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-bold transition-all ${activeView === 'table' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
             >
-              <BarChart2 size={12} className="w-3 h-3" /> Gráfica
+              <Table size={12} className="w-3 h-3" /> Tabla
             </button>
-          )}
-        </div>
+            {canChart && (
+              <button
+                onClick={() => setActiveView('chart')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-bold transition-all ${activeView === 'chart' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                <BarChart2 size={12} className="w-3 h-3" /> Gráfica
+              </button>
+            )}
+          </div>
 
-        <div className="flex items-center gap-2">
-          {sql_query && (
+          <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setSqlOpen(!sqlOpen)}
-              className={`p-1 rounded-lg border transition-colors cursor-pointer ${sqlOpen ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:text-slate-700'}`}
-              title="Ver Consulta SQL"
+              onClick={() => setIsMaximized(true)}
+              className="p-1 rounded-lg border border-slate-200 text-slate-500 hover:text-blue-600 bg-white hover:bg-slate-50 shadow-sm transition-all"
+              title="Ampliar visualización"
             >
-              <Code size={12} className="w-3 h-3" />
+              <Maximize2 size={12} className="w-3 h-3" />
             </button>
-          )}
-          <button
-            onClick={downloadCSV}
-            className="flex items-center gap-1 text-[9px] font-bold text-slate-700 hover:text-indigo-600 bg-white border border-slate-200 px-2 py-1 rounded-lg shadow-sm cursor-pointer"
-          >
-            <Download size={12} className="w-3 h-3" /> CSV
-          </button>
+            <button
+              onClick={downloadCSV}
+              className="flex items-center gap-1 text-[9px] font-bold text-slate-700 hover:text-blue-600 bg-white border border-slate-200 px-2 py-1 rounded-lg shadow-sm cursor-pointer hover:shadow transition-all"
+            >
+              <Download size={12} className="w-3 h-3 text-blue-600" /> Exportar
+            </button>
+          </div>
         </div>
-      </div>
 
-      {sqlOpen && sql_query && (
-        <div className="p-3 bg-slate-900 text-slate-200 font-mono text-[9px] border-b border-slate-800 text-left overflow-x-auto whitespace-pre select-all max-h-[120px] scrollbar-thin">
-          {sql_query}
-        </div>
-      )}
+        <div className="bg-white max-h-[160px] overflow-hidden relative">
+          {/* Overlay to indicate click to expand */}
+          <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/5 transition-all duration-300 flex items-center justify-center pointer-events-none">
+            <span className="bg-white/95 text-blue-800 text-[9px] font-extrabold px-2.5 py-1.5 rounded-full border border-blue-100 shadow-lg scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300 flex items-center gap-1">
+              <Maximize2 size={10} className="w-2.5 h-2.5" /> Ampliar visualización
+            </span>
+          </div>
 
-      <div className="bg-white">
-        {activeView === 'table' ? (
-          <div className="overflow-x-auto max-h-[220px] scrollbar-thin">
-            <table className="w-full text-[10px] text-left border-collapse">
-              <thead className="bg-slate-50 text-slate-500 sticky top-0 font-bold border-b border-slate-100">
-                <tr>
-                  {Object.keys(registros[0]).map((k) => (
-                    <th key={k} className="px-3 py-2 border-r border-slate-100 last:border-0">{k}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {registros.map((fila, idx) => (
-                  <tr key={idx} className="hover:bg-indigo-50/20 transition-colors">
-                    {Object.values(fila).map((val, cellIdx) => (
-                      <td key={cellIdx} className="px-3 py-2 border-r border-slate-100 last:border-0 truncate max-w-[120px]" title={val !== null ? String(val) : ""}>
-                        {val === null ? <span className="text-slate-400 italic">null</span> : String(val)}
-                      </td>
+          {activeView === 'table' ? (
+            <div className="overflow-x-auto max-h-[160px] scrollbar-thin select-none pointer-events-none">
+              <table className="w-full text-[10px] text-left border-collapse">
+                <thead className="bg-blue-900 text-white sticky top-0 font-bold">
+                  <tr>
+                    {Object.keys(registros[0]).map((k) => (
+                      <th key={k} className="px-3 py-2 border-r border-blue-800 last:border-0 font-bold uppercase tracking-wider">{k}</th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="w-full h-[180px] p-3" style={{ minWidth: 200 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={registros.slice(0, 15)} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey={stringKey} tick={{ fontSize: 8, fill: '#64748b' }} />
-                <YAxis tick={{ fontSize: 8, fill: '#64748b' }} />
-                <RechartsTooltip contentStyle={{ fontSize: '9px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-                <Bar dataKey={numberKey} fill="#6366f1" radius={[3, 3, 0, 0]} maxBarSize={30} />
-              </BarChart>
-            </ResponsiveContainer>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {registros.slice(0, 5).map((fila, idx) => (
+                    <tr key={idx} className="hover:bg-blue-50/50 transition-colors odd:bg-slate-50/30">
+                      {Object.values(fila).map((val, cellIdx) => (
+                        <td key={cellIdx} className="px-3 py-1.5 border-r border-slate-100 last:border-0 truncate max-w-[120px]">
+                          {val === null ? <span className="text-slate-400 italic">null</span> : (typeof val === 'number' && !String(val).includes('.') ? val : String(val))}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  {registros.length > 5 && (
+                    <tr className="bg-slate-50 text-slate-400 font-bold">
+                      <td colSpan={Object.keys(registros[0]).length} className="text-center py-2 text-[9px] uppercase tracking-wide">
+                        + {registros.length - 5} registros más. Clic para verlos todos.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="w-full h-[140px] p-2 flex justify-center items-center pointer-events-none select-none" style={{ minWidth: 200 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={registros.slice(0, 8)} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey={stringKey} tick={{ fontSize: 7, fill: '#64748b' }} />
+                  <YAxis tick={{ fontSize: 7, fill: '#64748b' }} />
+                  <Bar dataKey={numberKey} fill="#004f9f" radius={[2, 2, 0, 0]} maxBarSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        {tiempos && (
+          <div className="px-3 py-1 bg-slate-50 text-[8px] text-slate-400 font-semibold border-t border-slate-100 text-right">
+            IA: {tiempos.ia_segundos}s | DB: {tiempos.bd_segundos}s | Registros: {total_registros || registros.length}
           </div>
         )}
       </div>
+      {/* Side-by-Side Floating Visualizer Panel */}
+      {isMaximized && createPortal(
+        <div 
+          ref={popoutRef}
+          className="fixed bottom-6 left-4 right-4 md:left-auto md:right-[414px] w-auto md:w-[600px] lg:w-[800px] xl:w-[950px] max-w-[calc(100vw-2rem)] md:max-w-[calc(100vw-450px)] h-[600px] max-h-[85vh] bg-white border border-slate-200 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.12)] flex flex-col z-[200] overflow-hidden animate-in fade-in slide-in-from-right duration-300"
+        >
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/80 flex flex-col md:flex-row md:justify-between md:items-center gap-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100">
+                  <Bot size={20} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-950">Visualizador de Consultas Orbis AI</h3>
+                  <p className="text-xs text-slate-500 font-semibold">
+                    Mostrando {filteredRegistros.length} de {registros.length} registros {tiempos ? `(IA: ${tiempos.ia_segundos}s | DB: ${tiempos.bd_segundos}s)` : ''}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Search Bar */}
+                {activeView === 'table' && (
+                  <div className="relative flex items-center bg-slate-100 border border-transparent focus-within:border-blue-400 focus-within:bg-white rounded-xl px-3 py-1.5 shadow-inner transition-all w-48 md:w-64">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Filtrar datos en esta tabla..."
+                      className="w-full text-xs bg-transparent outline-none pr-6 text-slate-850"
+                    />
+                    {searchTerm && (
+                      <button 
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-2.5 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                )}
 
-      {tiempos && (
-        <div className="px-3 py-1 bg-slate-50 text-[8px] text-slate-400 font-semibold border-t border-slate-100 text-right">
-          IA: {tiempos.ia_segundos}s | DB: {tiempos.bd_segundos}s | Filas: {total_registros || registros.length}
-        </div>
-      )}
-    </div>
+                {/* View Selector inside Modal */}
+                <div className="flex bg-slate-200/60 p-0.5 rounded-lg text-xs">
+                  <button
+                    onClick={() => setActiveView('table')}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-md font-bold transition-all ${activeView === 'table' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
+                  >
+                    <Table size={13} className="w-3.5 h-3.5" /> Tabla
+                  </button>
+                  {canChart && (
+                    <button
+                      onClick={() => setActiveView('chart')}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-md font-bold transition-all ${activeView === 'chart' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
+                    >
+                      <BarChart2 size={13} className="w-3.5 h-3.5" /> Gráfica
+                    </button>
+                  )}
+                </div>
+
+                {/* Export Button */}
+                <button
+                  onClick={downloadCSV}
+                  className="flex items-center gap-1 text-xs font-bold text-slate-700 hover:text-blue-600 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm hover:shadow cursor-pointer transition-all"
+                >
+                  <Download size={13} className="w-3.5 h-3.5 text-blue-600" /> Exportar CSV
+                </button>
+
+                {/* Close Button */}
+                <button 
+                  onClick={() => setIsMaximized(false)}
+                  className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-950 rounded-full transition-colors cursor-pointer"
+                  title="Cerrar Visualización"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-auto bg-white p-6 custom-scrollbar">
+              {activeView === 'table' ? (
+                filteredRegistros.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400 py-10">
+                    <span className="text-3xl">🔍</span>
+                    <span className="text-sm font-semibold mt-2">No se encontraron registros que coincidan con la búsqueda</span>
+                  </div>
+                ) : (
+                  <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead className="bg-blue-900 text-white sticky top-0 font-bold">
+                        <tr>
+                          {Object.keys(registros[0]).map((k) => (
+                            <th key={k} className="px-4 py-3 border-r border-blue-800 last:border-0 font-bold uppercase tracking-wider">{k}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {filteredRegistros.map((fila, idx) => (
+                          <tr key={idx} className="hover:bg-blue-50/50 transition-colors odd:bg-slate-50/20">
+                            {Object.values(fila).map((val, cellIdx) => (
+                              <td key={cellIdx} className="px-4 py-2.5 border-r border-slate-100 last:border-0 truncate max-w-[240px]" title={val !== null ? String(val) : ""}>
+                                {val === null ? <span className="text-slate-400 italic">null</span> : (typeof val === 'number' && !String(val).includes('.') ? val : String(val))}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              ) : (
+                <div className="w-full h-full p-2 flex flex-col justify-center items-center" style={{ minHeight: 320 }}>
+                  <ResponsiveContainer width="95%" height="95%">
+                    <BarChart data={registros} margin={{ top: 20, right: 20, left: 10, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey={stringKey} tick={{ fontSize: 10, fill: '#64748b' }} />
+                      <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
+                      <RechartsTooltip contentStyle={{ fontSize: '11px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
+                      <Bar dataKey={numberKey} fill="#004f9f" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
 
 function OrbisFace({ emotion }: { emotion: 'idle' | 'listening' | 'thinking' | 'sad' | 'error' | 'happy' }) {
   const getGlowColor = () => {
     switch (emotion) {
-      case 'listening': return 'bg-orange-500/30 animate-pulse';
-      case 'thinking': return 'bg-violet-600/30 animate-pulse';
+      case 'listening': return 'bg-amber-500/30 animate-pulse';
+      case 'thinking': return 'bg-blue-600/30 animate-pulse';
       case 'happy': return 'bg-emerald-400/30';
       case 'sad':
       case 'error': return 'bg-rose-500/30';
-      default: return 'bg-indigo-500/20';
+      default: return 'bg-blue-500/20';
     }
   };
 
   const getOrbFill = () => {
     switch (emotion) {
-      case 'listening': return '#f97316';
-      case 'thinking': return '#8b5cf6';
+      case 'listening': return '#f59e0b';
+      case 'thinking': return '#2563eb';
       case 'happy': return '#10b981';
       case 'sad':
       case 'error': return '#ef4444';
-      default: return '#6366f1';
+      default: return '#3b82f6';
     }
   };
 
@@ -485,7 +646,7 @@ export function Layout() {
               <span className="font-extrabold text-lg tracking-tight text-slate-900 leading-tight">
                 KPI´S <span className="text-[#c1121f]">VENTAS</span>
               </span>
-              <span className="text-xs font-semibold text-indigo-600 truncate max-w-[150px]">
+              <span className="text-xs font-semibold text-blue-600 truncate max-w-[150px]">
                 {selectedEmpresa.nombre}
               </span>
             </div>
@@ -495,7 +656,7 @@ export function Layout() {
           <nav className="flex items-center h-full space-x-1">
             <NavLink 
               to="/dashboard" 
-              className={({ isActive }) => `flex items-center space-x-2 px-4 h-full border-b-2 transition-colors ${isActive ? 'border-indigo-600 text-indigo-600 font-bold bg-indigo-50/50' : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+              className={({ isActive }) => `flex items-center space-x-2 px-4 h-full border-b-2 transition-colors ${isActive ? 'border-blue-600 text-blue-600 font-bold bg-blue-50/50' : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
             >
               <LayoutDashboard size={18} />
               <span className="hidden sm:inline">Dashboard</span>
@@ -505,7 +666,7 @@ export function Layout() {
             <button 
               onClick={() => setIsFilterOpen(!isFilterOpen)}
               className={`flex items-center space-x-2 px-4 h-full border-b-2 transition-colors cursor-pointer ${
-                isFilterOpen ? 'border-indigo-600 text-indigo-600 font-bold bg-indigo-50/50' : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                isFilterOpen ? 'border-blue-600 text-blue-600 font-bold bg-blue-50/50' : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
@@ -518,7 +679,7 @@ export function Layout() {
                 onClick={() => setVentasOpen(!ventasOpen)}
                 className={`flex items-center space-x-2 px-4 h-full border-b-2 transition-colors cursor-pointer ${
                   location.pathname.startsWith('/ventas/sucursal/') || ventasOpen
-                    ? 'border-indigo-600 text-indigo-600 font-bold bg-indigo-50/50' 
+                    ? 'border-blue-600 text-blue-600 font-bold bg-blue-50/50' 
                     : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
@@ -539,7 +700,7 @@ export function Layout() {
                         onClick={() => setVentasOpen(false)}
                         className={({ isActive }) => `flex items-center px-4 py-3 text-sm rounded-xl transition-colors cursor-pointer ${
                           isActive 
-                            ? 'bg-indigo-50 text-indigo-800 font-bold' 
+                            ? 'bg-blue-50 text-blue-800 font-bold' 
                             : 'text-slate-800 font-semibold hover:bg-rose-50 hover:text-rose-700'
                         }`}
                       >
@@ -572,14 +733,14 @@ export function Layout() {
           
           <button 
             onClick={() => setOrbisOpen(true)}
-            className="flex items-center space-x-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-indigo-500/30 transition-all hover:scale-105 cursor-pointer relative group"
+            className="flex items-center space-x-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-700 to-sky-600 hover:from-blue-600 hover:to-sky-500 text-white shadow-lg shadow-blue-500/30 transition-all hover:scale-105 cursor-pointer relative group"
           >
             <div className="absolute inset-0 bg-white/20 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <Sparkles size={16} className="animate-pulse" />
+            <Sparkles size={16} className="animate-pulse text-amber-300" />
             <span className="font-bold text-sm tracking-wide">Orbis AI</span>
           </button>
 
-          <button className="relative p-2 text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer hidden sm:block">
+          <button className="relative p-2 text-slate-500 hover:text-blue-600 transition-colors cursor-pointer hidden sm:block">
             <Bell size={20} />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
           </button>
@@ -590,46 +751,68 @@ export function Layout() {
         </div>
       </header>
 
-      {/* Orbis Offcanvas Panel */}
-      <div className={`fixed inset-0 z-[100] transition-opacity duration-300 ${orbisOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={() => setOrbisOpen(false)}></div>
-        <div className={`absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[var(--color-surface-card)] shadow-2xl transition-transform duration-300 transform ${orbisOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col border-l border-[var(--color-border-light)]`}>
+      {/* Botón Flotante Launcher (si está cerrado) */}
+      {!orbisOpen && (
+        <button
+          onClick={() => setOrbisOpen(true)}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-700 to-sky-600 hover:from-blue-600 hover:to-sky-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 cursor-pointer z-[90]"
+          title="Abrir Asistente Orbis"
+        >
+          <Sparkles size={24} className="animate-pulse text-amber-300" />
+        </button>
+      )}
+
+      {/* Orbis Floating Chat Widget */}
+      {orbisOpen && (
+        <div className="fixed bottom-6 right-6 w-[380px] h-[600px] max-h-[85vh] max-w-[calc(100vw-2rem)] bg-white border border-slate-200/80 rounded-[28px] shadow-[0_20px_50px_rgba(37,99,235,0.12)] flex flex-col z-[100] overflow-hidden transition-all duration-300 transform scale-100 origin-bottom-right animate-in fade-in slide-in-from-bottom-5 orbis-chat-widget">
           {/* Header */}
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-violet-600 to-indigo-600 text-white shrink-0">
-            <div className="flex items-center space-x-2">
-              <Sparkles size={20} />
-              <h2 className="font-bold text-lg">Orbis Assistant</h2>
+          <div className="p-3 bg-gradient-to-r from-blue-800 via-blue-900 to-slate-900 text-white flex items-center justify-between shrink-0 shadow-md">
+            <div className="flex items-center space-x-2.5">
+              <div className="relative">
+                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
+                  <Bot size={18} className="text-amber-400" />
+                </div>
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-slate-900 animate-pulse"></span>
+              </div>
+              <div className="flex flex-col">
+                <span className="font-extrabold text-xs tracking-wider text-white uppercase">Orbis Assistant</span>
+                <span className="text-[8px] font-bold text-emerald-400 tracking-widest uppercase">En Línea</span>
+              </div>
             </div>
-            <div className="flex items-center space-x-1.5">
+            <div className="flex items-center space-x-1">
               <button 
                 onClick={clearHistory}
-                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-white/80 hover:text-white"
                 title="Limpiar Historial"
               >
-                <Trash2 size={16} />
+                <Trash2 size={15} />
               </button>
-              <button onClick={() => setOrbisOpen(false)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors cursor-pointer">
-                <X size={18} />
+              <button 
+                onClick={() => setOrbisOpen(false)} 
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-white/80 hover:text-white"
+                title="Cerrar"
+              >
+                <X size={16} />
               </button>
             </div>
           </div>
 
           {/* Messages Body */}
-          <div className="flex-1 p-4 overflow-y-auto flex flex-col space-y-4 custom-scrollbar bg-slate-50/20">
+          <div className="flex-1 p-3 overflow-y-auto flex flex-col space-y-3 custom-scrollbar bg-slate-50/40">
             {messages.length === 1 && messages[0].id === 'welcome' ? (
               // Welcome Screen
-              <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-8">
+              <div className="flex-1 flex flex-col items-center justify-center text-center px-3 py-6">
                 <OrbisFace emotion={emotion} />
-                <h3 className="font-extrabold text-xl text-slate-900 tracking-tight mb-2">
-                  ¡Hola! Soy <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">Orbis</span>
+                <h3 className="font-extrabold text-lg text-slate-950 mb-1">
+                  ¡Hola! Soy <span className="bg-gradient-to-r from-blue-700 to-sky-600 bg-clip-text text-transparent">Orbis</span>
                 </h3>
-                <p className="text-sm text-slate-500 max-w-[280px] leading-relaxed mb-6">
-                  Tu asistente con IA de Multillantas Nieto. Consúltame datos de ventas, asesores, inventario y más.
+                <p className="text-xs text-slate-500 max-w-[240px] leading-relaxed mb-5">
+                  Tu asistente inteligente de Multillantas Nieto. Consúltame datos de ventas, asesores, inventario y más.
                 </p>
 
                 {/* Starter Suggestions */}
-                <div className="w-full max-w-[300px] space-y-2 text-left">
-                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block mb-2 px-1">Consultas sugeridas</span>
+                <div className="w-full max-w-[280px] space-y-2 text-left">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mb-1 px-1">Consultas sugeridas</span>
                   {[
                     "¿Cuáles son las marcas más vendidas?",
                     "Muestra las ventas totales de este mes",
@@ -638,7 +821,7 @@ export function Layout() {
                     <button
                       key={idx}
                       onClick={() => handleSuggestionClick(sug)}
-                      className="w-full text-left text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/20 px-3 py-2.5 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 cursor-pointer block"
+                      className="w-full text-left text-xs font-semibold text-slate-700 bg-white border border-slate-200/80 hover:border-blue-300 hover:bg-blue-50/20 px-3 py-2 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer block"
                     >
                       {sug}
                     </button>
@@ -647,19 +830,19 @@ export function Layout() {
               </div>
             ) : (
               // Chat conversation
-              <div className="flex flex-col space-y-4">
+              <div className="flex flex-col space-y-3">
                 {messages.map((msg) => (
-                  <div key={msg.id} className={`flex gap-2 w-full ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div key={msg.id} className={`flex gap-1.5 w-full ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                     {msg.sender === 'orbis' && (
-                      <div className="w-6 h-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center border border-violet-200 shadow-sm shrink-0 self-end mb-1">
-                        <Bot size={12} />
+                      <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200 shadow-sm shrink-0 self-end mb-1">
+                        <Bot size={11} />
                       </div>
                     )}
-                    <div className={`flex flex-col max-w-[85%] ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                    <div className={`flex flex-col max-w-[82%] ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
                       <div className={
                         msg.sender === 'user'
-                          ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-2xl rounded-br-none px-3.5 py-2 text-sm shadow-md select-text break-words'
-                          : 'bg-white border border-slate-100 text-slate-800 rounded-2xl rounded-tl-none px-3.5 py-2 text-sm shadow-sm select-text break-words'
+                          ? 'bg-gradient-to-r from-blue-700 to-sky-600 text-white rounded-2xl rounded-br-none px-3 py-1.5 text-xs shadow-md select-text break-words'
+                          : 'bg-white border border-slate-100 text-slate-800 rounded-2xl rounded-tl-none px-3 py-1.5 text-xs shadow-sm select-text break-words'
                       }>
                         {msg.text}
                       </div>
@@ -669,19 +852,18 @@ export function Layout() {
                         <MessageDataViewer
                           registros={msg.registros}
                           tiempos={msg.tiempos}
-                          sql_query={msg.sql_query}
                           total_registros={msg.total_registros}
                         />
                       )}
 
                       {/* Sugerencias contextuales de Orbis */}
                       {msg.sender === 'orbis' && msg.sugerencias && msg.sugerencias.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1 justify-start">
+                        <div className="mt-1.5 flex flex-wrap gap-1 justify-start">
                           {msg.sugerencias.map((sug, sIdx) => (
                             <button
                               key={sIdx}
                               onClick={() => handleSuggestionClick(sug)}
-                              className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 px-2 py-1 rounded-full transition-all duration-200 cursor-pointer shadow-sm hover:-translate-y-0.5"
+                              className="text-[9px] font-semibold text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 px-2 py-0.5 rounded-full transition-all duration-200 cursor-pointer shadow-sm"
                             >
                               {sug}
                             </button>
@@ -694,12 +876,12 @@ export function Layout() {
 
                 {/* Loading state bubble */}
                 {chatLoading && (
-                  <div className="flex gap-2 w-full justify-start animate-fade-in">
-                    <div className="w-6 h-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center border border-violet-200 shadow-sm shrink-0 self-end mb-1">
-                      <Bot size={12} />
+                  <div className="flex gap-1.5 w-full justify-start animate-fade-in">
+                    <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200 shadow-sm shrink-0 self-end mb-1">
+                      <Bot size={11} />
                     </div>
-                    <div className="bg-white border border-slate-100 text-slate-500 rounded-2xl rounded-tl-none px-3.5 py-2 text-sm shadow-sm flex items-center gap-2">
-                      <Loader2 size={14} className="animate-spin text-indigo-600" />
+                    <div className="bg-white border border-slate-100 text-slate-500 rounded-2xl rounded-tl-none px-3 py-1.5 text-xs shadow-sm flex items-center gap-1.5">
+                      <Loader2 size={12} className="animate-spin text-blue-600" />
                       <span>Orbis está analizando...</span>
                     </div>
                   </div>
@@ -710,35 +892,35 @@ export function Layout() {
             )}
           </div>
 
-          {/* Footer (Input Form) */}
-          <div className="p-3 border-t border-slate-100 bg-white flex flex-col gap-2 shrink-0">
-            <form onSubmit={(e) => { e.preventDefault(); sendChatMessage(chatInput); }} className="flex items-center gap-2">
+          {/* Footer (Input Form & Brand name) */}
+          <div className="p-2.5 border-t border-slate-100 bg-white flex flex-col shrink-0">
+            <form onSubmit={(e) => { e.preventDefault(); sendChatMessage(chatInput); }} className="flex items-center gap-1.5">
               {/* Altavoz Toggle */}
               <button
                 type="button"
                 onClick={() => setVoiceEnabled(!voiceEnabled)}
-                className={`p-2 rounded-xl transition-all cursor-pointer border ${voiceEnabled ? 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100' : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'}`}
+                className={`p-1.5 rounded-xl transition-all cursor-pointer border ${voiceEnabled ? 'bg-blue-50 border-blue-100 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'}`}
                 title={voiceEnabled ? "Desactivar salida de voz" : "Activar salida de voz"}
               >
-                {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                {voiceEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
               </button>
 
-              {/* Input de Texto */}
-              <div className="flex-1 relative flex items-center bg-slate-100/85 hover:bg-slate-100 rounded-xl px-3 py-1.5 border border-transparent focus-within:border-indigo-400 focus-within:bg-white transition-all duration-200 shadow-inner">
+              {/* Input de Texto tipo píldora */}
+              <div className="flex-1 relative flex items-center bg-slate-100 hover:bg-slate-100/80 rounded-full px-3.5 py-1.5 border border-transparent focus-within:border-blue-400 focus-within:bg-white transition-all duration-200 shadow-inner">
                 <input
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Pregúntale a Orbis..."
+                  placeholder="Escribe tu consulta aquí..."
                   disabled={chatLoading}
-                  className="w-full text-sm bg-transparent outline-none pr-7 text-slate-800"
+                  className="w-full text-xs bg-transparent outline-none pr-6 text-slate-800"
                 />
                 {chatInput.trim() && (
                   <button
                     type="submit"
-                    className="absolute right-2 text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+                    className="absolute right-2 text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
                   >
-                    <ArrowUp size={16} className="bg-indigo-600 text-white rounded-full p-0.5" />
+                    <Send size={12} className="text-blue-600" />
                   </button>
                 )}
               </div>
@@ -747,23 +929,26 @@ export function Layout() {
               <button
                 type="button"
                 onClick={toggleRecording}
-                className={`p-2.5 rounded-full transition-all duration-200 shadow-md cursor-pointer border flex items-center justify-center ${
+                className={`p-2 rounded-full transition-all duration-200 shadow-sm cursor-pointer border flex items-center justify-center ${
                   isRecording
                     ? 'bg-rose-500 border-rose-600 text-white animate-pulse'
                     : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
                 title={isRecording ? "Detener grabación de voz" : "Grabar consulta de voz"}
               >
-                {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
+                {isRecording ? <MicOff size={14} /> : <Mic size={14} />}
               </button>
             </form>
+            <div className="text-[8px] text-center text-slate-400 font-bold uppercase tracking-widest mt-2 select-none">
+              Multillantas Nieto © 2026
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-auto bg-transparent relative z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/20 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-transparent pointer-events-none" />
           <Outlet context={{ isFilterOpen, setIsFilterOpen, sucursales }} />
       </main>
     </div>

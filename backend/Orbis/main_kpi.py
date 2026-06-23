@@ -155,7 +155,17 @@ def procesar_chat(request: ChatRequest):
                         else:
                             datos = df.to_dicts()
                 except Exception as e_rescate:
-                    msg_limpio, sugs = procesar_texto_y_sugerencias(f"He intentado buscarlo, pero sigo topándome con un error técnico al buscar '{query}'. Detalle: {str(e_rescate)}")
+                    import traceback
+                    print(f"⚠️ Error de consulta en base de datos: {str(e_rescate)}")
+                    traceback.print_exc()
+                    
+                    msg_limpio, sugs = procesar_texto_y_sugerencias(
+                        "Disculpa, he tenido un inconveniente al consultar la información. "
+                        "¿Podrías intentar replantear tu pregunta de otra forma?\n\n"
+                        "SUGERENCIA: ¿Cuáles son las marcas más vendidas?\n"
+                        "SUGERENCIA: Muestra las ventas totales de este mes\n"
+                        "SUGERENCIA: ¿Quién es el asesor con mayores ventas?"
+                    )
                     return {
                         "status": "success",
                         "mensaje": msg_limpio,
