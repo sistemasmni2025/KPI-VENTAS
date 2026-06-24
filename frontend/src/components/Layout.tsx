@@ -12,9 +12,15 @@ interface MessageDataViewerProps {
   registros: any[];
   tiempos?: { ia_segundos: number; bd_segundos: number };
   total_registros?: number;
+  sucursales?: { id: number; nombre: string }[];
 }
 
 const formatHeader = (key: string): string => {
+  const lowerKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (lowerKey === 'sucursalid' || lowerKey === 'idsucursal') {
+    return 'Sucursal';
+  }
+
   let clean = key;
   const match = key.match(/\(([^)]+)\)/);
   if (match && match[1]) {
@@ -61,12 +67,20 @@ const formatHeader = (key: string): string => {
     .trim();
 };
 
-const formatCellValue = (val: any, columnName: string): any => {
+const formatCellValue = (val: any, columnName: string, sucursales: { id: number; nombre: string }[] = []): any => {
   if (val === null || val === undefined) {
     return 'Sin datos';
   }
   
-  const lowerCol = columnName.toLowerCase();
+  const lowerCol = columnName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (lowerCol === 'sucursalid' || lowerCol === 'idsucursal' || lowerCol === 'sucursal') {
+    const id = Number(val);
+    if (!isNaN(id)) {
+      const found = sucursales.find(s => s.id === id);
+      if (found) return found.nombre;
+    }
+  }
+
   const isMonetary = lowerCol.includes('importe') || 
                      lowerCol.includes('precio') || 
                      lowerCol.includes('costo') || 
@@ -100,7 +114,7 @@ const formatCellValue = (val: any, columnName: string): any => {
   return String(val);
 };
 
-function MessageDataViewer({ registros, tiempos, total_registros }: MessageDataViewerProps) {
+function MessageDataViewer({ registros, tiempos, total_registros, sucursales = [] }: MessageDataViewerProps) {
   const [activeView, setActiveView] = useState<'table' | 'chart'>('table');
   const [isMaximized, setIsMaximized] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -217,7 +231,7 @@ function MessageDataViewer({ registros, tiempos, total_registros }: MessageDataV
                 {formatHeader(Object.keys(registros[0])[0])}
               </span>
               <span className="text-2xl font-extrabold text-blue-900 tracking-tight">
-                {formatCellValue(Object.values(registros[0])[0], Object.keys(registros[0])[0])}
+                {formatCellValue(Object.values(registros[0])[0], Object.keys(registros[0])[0], sucursales)}
               </span>
             </div>
           ) : activeView === 'table' ? (
@@ -235,7 +249,7 @@ function MessageDataViewer({ registros, tiempos, total_registros }: MessageDataV
                     <tr key={idx} className="hover:bg-blue-50/50 transition-colors odd:bg-slate-50/30">
                       {Object.entries(fila).map(([k, val], cellIdx) => (
                         <td key={cellIdx} className="px-3 py-1.5 border-r border-slate-100 last:border-0 truncate max-w-[120px]">
-                          {formatCellValue(val, k)}
+                          {formatCellValue(val, k, sucursales)}
                         </td>
                       ))}
                     </tr>
@@ -361,7 +375,7 @@ function MessageDataViewer({ registros, tiempos, total_registros }: MessageDataV
                       {formatHeader(Object.keys(registros[0])[0])}
                     </span>
                     <span className="text-4xl font-extrabold text-blue-900 tracking-tight">
-                      {formatCellValue(Object.values(registros[0])[0], Object.keys(registros[0])[0])}
+                      {formatCellValue(Object.values(registros[0])[0], Object.keys(registros[0])[0], sucursales)}
                     </span>
                   </div>
                 </div>
@@ -386,7 +400,7 @@ function MessageDataViewer({ registros, tiempos, total_registros }: MessageDataV
                           <tr key={idx} className="hover:bg-blue-50/50 transition-colors odd:bg-slate-50/20">
                             {Object.entries(fila).map(([k, val], cellIdx) => (
                               <td key={cellIdx} className="px-4 py-2.5 border-r border-slate-100 last:border-0 truncate max-w-[240px]" title={val !== null ? String(val) : ""}>
-                                {formatCellValue(val, k)}
+                                {formatCellValue(val, k, sucursales)}
                               </td>
                             ))}
                           </tr>
@@ -966,6 +980,7 @@ export function Layout() {
                           registros={msg.registros}
                           tiempos={msg.tiempos}
                           total_registros={msg.total_registros}
+                          sucursales={sucursales}
                         />
                       )}
 
