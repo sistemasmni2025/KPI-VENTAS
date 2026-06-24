@@ -354,7 +354,11 @@ function MessageDataViewer({ registros, tiempos, total_registros, sucursales = [
 
                 {/* Close Button */}
                 <button 
-                  onClick={() => setIsMaximized(false)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMaximized(false);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
                   className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-950 rounded-full transition-colors cursor-pointer"
                   title="Cerrar Visualización"
                 >
