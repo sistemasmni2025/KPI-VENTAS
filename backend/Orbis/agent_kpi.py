@@ -8,7 +8,7 @@ from skills import analizar_archivo_datos
 
 load_dotenv()
 
-def generar_sql(texto_usuario: str, historial: list = None, modelo_elegido: str = "Razonamiento", error_previo: str = None) -> dict:
+def generar_sql(texto_usuario: str, historial: list = None, modelo_elegido: str = "Razonamiento", error_previo: str = None, empresa_id: int = None) -> dict:
     
     ollama_host = os.getenv("OLLAMA_HOST", "http://172.16.71.208:11434")
     modelo_real = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
@@ -43,7 +43,16 @@ def generar_sql(texto_usuario: str, historial: list = None, modelo_elegido: str 
    - Ejemplo incorrecto: `SELECT asesor.AsesorClave, asesor.AsesorNombre, SUM(...) GROUP BY asesor.AsesorClave` (Dará error 1055).
    - Ejemplo correcto: `SELECT asesor.AsesorClave, asesor.AsesorNombre, SUM(...) GROUP BY asesor.AsesorClave, asesor.AsesorNombre` (Funcionará).
    Siempre asegúrate de que toda columna no agregada seleccionada esté en el GROUP BY.
+"""
 
+    if empresa_id is not None:
+        system_prompt += f"""
+7. FILTRO OBLIGATORIO DE EMPRESA (CRÍTICO):
+   - El usuario está consultando datos EXCLUSIVAMENTE para la empresa con ID {empresa_id}. 
+   - DEBES agregar `EmpresaID = {empresa_id}` a TODAS las sentencias WHERE (para todas las tablas involucradas, como docto, doctodetalle, asesor, sucursal, etc).
+"""
+
+    system_prompt += """
 # SKILLS Y ARCHIVOS:
 - Si el mensaje incluye rutas de archivos (ej. [ARCHIVOS ADJUNTOS...]), DEBES usar `analizar_archivo`. 
 

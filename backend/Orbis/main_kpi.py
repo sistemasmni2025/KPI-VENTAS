@@ -71,6 +71,7 @@ class ChatRequest(BaseModel):
     mensaje: str
     historial: List[Dict[str, Any]] = []
     modelo: str = "Razonamiento"
+    empresa_id: Optional[int] = None
 
 def procesar_texto_y_sugerencias(texto: str):
     """Extrae las 'SUGERENCIA:' del texto devuelto por Ollama."""
@@ -100,7 +101,8 @@ def procesar_chat(request: ChatRequest):
         ia_respuesta = generar_sql(
             texto_usuario=request.mensaje,
             historial=request.historial,
-            modelo_elegido=request.modelo
+            modelo_elegido=request.modelo,
+            empresa_id=request.empresa_id
         )
         gen_time = time.time()
         
@@ -139,7 +141,8 @@ def procesar_chat(request: ChatRequest):
                 texto_usuario=request.mensaje,
                 historial=request.historial,
                 modelo_elegido=request.modelo,
-                error_previo=error_msg
+                error_previo=error_msg,
+                empresa_id=request.empresa_id
             )
             gen_time = time.time()
             

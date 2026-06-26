@@ -641,7 +641,8 @@ export function Layout() {
         body: JSON.stringify({
           mensaje: text,
           historial: history,
-          modelo: 'Razonamiento'
+          modelo: 'Razonamiento',
+          empresa_id: selectedEmpresa ? selectedEmpresa.id : undefined
         })
       });
 
